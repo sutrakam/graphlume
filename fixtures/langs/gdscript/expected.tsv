@@ -1,0 +1,41 @@
+# GDScript: class_name and inner classes, named enums (class), consts, signals and
+# inner-class members. Top level: functions are function, vars are variable.
+# Inside an inner class: functions are method, vars are field. Signals are field.
+# Locals, enumerators and anonymous enums are not listed.
+player.gd	2	class	Player
+player.gd	5	field	health_changed
+player.gd	6	field	died
+player.gd	8	class	State
+player.gd	11	constant	MAX_SPEED
+player.gd	12	constant	GRAVITY
+player.gd	14	variable	speed
+player.gd	15	variable	health
+player.gd	16	variable	sprite
+player.gd	17	variable	velocity_scale
+player.gd	18	variable	state
+player.gd	19	variable	instances
+player.gd	21	function	_ready
+player.gd	25	function	_physics_process
+player.gd	30	function	take_damage
+player.gd	38	function	create
+player.gd	42	function	_helper
+player.gd	48	class	Inventory
+player.gd	49	field	items
+player.gd	50	constant	LIMIT
+player.gd	52	method	add
+player.gd	55	class	Slot
+player.gd	56	field	index
+player.gd	58	method	clear
+player.gd	61	class	Weapon
+player.gd	62	field	fired
+player.gd	64	method	fire
+player.gd	67	variable	health_setter
+player.gd	73	variable	legacy_export
+player.gd	74	variable	legacy_node
+player.gd	75	variable	legacy_plain
+player.gd	77	variable	callback
+player.gd	80	function	uses_lambda
+player.gd	84	function	_init
+player.gd	87	class	Bag
+player.gd	88	field	size
+player.gd	90	method	_init

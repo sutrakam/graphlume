@@ -1,0 +1,98 @@
+@use "sass:math";
+@use "config" as cfg;
+
+// Settings.
+$primary: #3366cc;
+$spacing: 8px !default;
+
+:root {
+  --surface: #fff;
+  --text: #111;
+}
+
+$breakpoints: (
+  small: 480px,
+  large: 960px
+);
+
+@mixin respond($bp) {
+  $min: map-get($breakpoints, $bp);
+  @media (min-width: $min) {
+    @content;
+  }
+}
+
+@mixin button-variant($bg, $fg: white) {
+  background: $bg;
+  color: $fg;
+}
+
+@function rem($px, $base: 16px) {
+  @return math.div($px, $base) * 1rem;
+}
+
+@function z($layer) {
+  @return map-get($z-layers, $layer);
+}
+
+%visually-hidden {
+  position: absolute;
+  clip: rect(0 0 0 0);
+}
+
+%card-base {
+  border: 1px solid;
+  padding: $spacing;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.card {
+  @extend %card-base;
+  $local-gap: 4px;
+  padding: $local-gap;
+  @include button-variant($primary);
+  &__title {
+    font-size: rem(18px);
+  }
+  &:hover {
+    color: red;
+  }
+  .icon {
+    animation: spin 1s;
+  }
+}
+
+#sidebar {
+  width: z(modal);
+}
+
+.hidden {
+  @extend %visually-hidden;
+  @include respond(small) {
+    display: none;
+  }
+}
+
+@each $name, $value in $breakpoints {
+  .w-#{$name} {
+    max-width: $value;
+  }
+}
+
+@if $spacing > 4px {
+  $computed: $spacing * 2;
+  .big { margin: $computed; }
+}
+
+@font-face {
+  font-family: "Fira Body";
+  src: url("fira.woff2");
+}
+
+$z-layers: (
+  modal: 100,
+  toast: 200
+);

@@ -1,0 +1,45 @@
+# Teal definitions. Rule:
+#  - record and enum (including ones nested in a record body) are class; interface is interface; `type X = ...` (also inside a record body) is type_alias;
+#  - function f, local function f, global function f (at any depth) and `local f = function` / `global f = function` are function; function M.f and function M.A.f are function named f; function M:m is method named m;
+#  - a top-level `local NAME <const>` (or <total>) whose value is a literal, an operator expression, a table constructor or a call other than require() is constant; aliases of other modules' members and require() imports are not;
+#  - a top-level local or global initialised with a table constructor is variable;
+#  - record fields, enum values, plain locals, forward declarations (`global x: T`) and function-valued fields are not definitions.
+types.tl	6	class	Point
+types.tl	12	class	Config
+types.tl	16	class	Limits
+types.tl	21	class	Level
+types.tl	26	interface	Visitor
+types.tl	30	type_alias	Callback
+types.tl	31	type_alias	Names
+types.tl	36	class	Color
+types.tl	42	interface	Shape
+types.tl	46	class	Circle
+types.tl	50	class	Box
+types.tl	54	type_alias	Id
+types.tl	55	type_alias	Handler
+types.tl	56	type_alias	Registry
+types.tl	57	type_alias	Both
+types.tl	63	constant	DEFAULT_NAME
+types.tl	64	constant	MAX_POINTS
+types.tl	65	constant	DEFAULTS
+types.tl	66	constant	STEP
+types.tl	67	variable	cache
+funcs.tl	2	class	Stack
+funcs.tl	7	class	Parser
+funcs.tl	8	class	Token
+funcs.tl	14	function	trim
+funcs.tl	15	function	inner
+funcs.tl	21	function	generic
+funcs.tl	25	function	new
+funcs.tl	29	method	push
+funcs.tl	33	method	pop
+funcs.tl	37	function	describe
+funcs.tl	41	method	show
+funcs.tl	45	method	parse
+funcs.tl	49	function	log_all
+funcs.tl	53	function	handler
+funcs.tl	57	function	export_fn
+funcs.tl	61	variable	callbacks
+funcs.tl	65	variable	pending
+funcs.tl	67	function	use_all
+funcs.tl	70	function	nested

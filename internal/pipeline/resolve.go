@@ -1,0 +1,454 @@
+package pipeline
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/sutrakam/graphlume/internal/registry"
+	"github.com/sutrakam/graphlume/internal/resolve/infer"
+	"github.com/sutrakam/graphlume/pkg/model"
+)
+
+// ResolveOptions configures a resolution pass.
+type ResolveOptions struct {
+	// MinConfidence drops bindings weaker than this. Defaults to low.
+	MinConfidence model.Confidence
+
+	// BatchSize bounds how many edges are buffered before writing.
+	BatchSize int
+
+	// CandidateBudget bounds how many candidate rows resolution keeps
+	// resident. Zero uses registry.DefaultCandidateBudget. This is the knob
+	// that decides resolution's memory ceiling; it is exposed so a test can
+	// make eviction happen at a size a test can afford.
+	CandidateBudget int
+
+	// OnProgress reports files completed, if set.
+	OnProgress func(done int64)
+
+	// OnFlush reports the size of each batch as it is written, if set.
+	//
+	// The buffers are what bound this pass's memory, and they are the part of it
+	// a caller cannot otherwise see: the table contents are identical whether
+	// resolution flushed a thousand times or once at the end, which is how an
+	// unbounded outcome buffer survived every correctness test the package had.
+	OnFlush func(edges, outcomes int)
+
+	// OnClientCalls reports the outcome of binding staged outbound HTTP calls,
+	// if set.
+	//
+	// A callback rather than a field on the returned stats because the return
+	// type belongs to internal/resolve/infer, which knows about references and
+	// nothing else. Widening it to carry an unrelated pass's counters would put
+	// API analysis inside the reference resolver.
+	OnClientCalls func(registry.CallBindStats)
+
+	// OnInfraUnits reports the outcome of joining deployment units to the code
+	// they run, if set.
+	//
+	// A callback for the same reason OnClientCalls is one: infer.Stats is about
+	// references, and widening it to carry a deployment pass's counters would
+	// put manifest analysis inside the reference resolver.
+	OnInfraUnits func(InfraBindSummary)
+
+	// OnHandlers reports the outcome of binding endpoint handlers across files,
+	// if set. A callback for the same reason OnClientCalls is one.
+	OnHandlers func(registry.HandlerBindStats)
+
+	// OnRouteMounts reports the Python router-mount pass: routes renamed to
+	// the prefix another file mounts them under.
+	OnRouteMounts func(RouteMountStats)
+
+	// OnEventsMerged reports how many duplicate event-topic symbols were
+	// folded into one node each. `index` counts them one per declaring file;
+	// the merge is why the symbol count can be lower after `resolve`.
+	OnEventsMerged func(removed int)
+
+	// SkipGoMounts leaves the Go router-mount pass out. Set by an incremental
+	// pass in which no Go file and no go.mod changed: the pass parses every Go
+	// file that builds a router (about 2 s on this repository) and recomputes
+	// every route name from its own path, so with the Go files as they were it
+	// can only write what is already there.
+	SkipGoMounts bool
+}
+
+// DefaultResolveBatch is how many edges accumulate before a write.
+const DefaultResolveBatch = 2000
+
+// outcomeBatchFactor bounds the outcome buffer relative to the edge buffer.
+//
+// Most references produce no edge — they are unresolved calls into the standard
+// library or a third-party package — so outcomes accumulate several times
+// faster than edges. Four keeps the two buffers filling at roughly the same
+// rate on a repository that resolves well, and caps the outcome buffer on one
+// that resolves badly, where it would otherwise be the run's entire reference table.
+const outcomeBatchFactor = 4
+
+// Resolve binds a run's references to symbol definitions and writes the
+// resulting edges.
+//
+// Memory behaviour is the design constraint. A 10,920-file tree holds ~94,000
+// symbols and ~531,000 references; materialising both plus their edges would be
+// gigabytes, and this project has already been bitten once by unbounded
+// accumulation. So:
+//
+//   - The symbol index is loaded ONCE (~10 MB per 100k symbols) because every
+//     reference consults it, and per-reference SQL would be half a million
+//     queries.
+//   - References stream file by file and are never all resident.
+//   - Edges are flushed in batches rather than collected.
+func Resolve(
+	ctx context.Context,
+	reg *registry.Registry,
+	runID int64,
+	opts ResolveOptions,
+) (infer.Stats, error) {
+	var stats infer.Stats
+
+	batch := opts.BatchSize
+	if batch <= 0 {
+		batch = DefaultResolveBatch
+	}
+
+	// Candidates are read per file rather than preloaded for the whole run.
+	//
+	// LoadSymbolIndex pulled every symbol into one map before resolving
+	// anything, so peak memory tracked repository size: 725,000 entries on a
+	// 25,000-file tree, of which 69% had a name no reference in the run ever
+	// mentioned. A bounded cache answers the same questions with a working set
+	// that does not grow with the repository.
+	// Candidate cache reading up to DefaultPerNameLimit (1,000) candidates per name.
+	// We cannot cap at MaxCandidates+1 because narrowByReceiver (and inherited dispatch)
+	// rescues over-subscribed names (e.g. build() with 250 definitions) by filtering
+	// candidates on receiver class/file identity. Truncating candidates to MaxCandidates+1
+	// at the SQL level starves narrowByReceiver and drops valid calls as ambiguous.
+	// What the run knows about the repository as a whole: its directories and
+	// its declared dependencies. Read once, so that a call qualified by a
+	// package outside the repository can be recorded as external without a
+	// query per reference.
+	paths, dependencies, err := reg.RunLayout(ctx, runID)
+	if err != nil {
+		return stats, fmt.Errorf("read layout: %w", err)
+	}
+
+	// Code outside every definition (a test file's describe/it callbacks, a
+	// module's top level) gets a synthetic caller of its own before anything is
+	// bound, so that a call written there has a source for its edge. Only files
+	// that still hold a reference to bind get one, and the ones that end up with
+	// no edge are removed again below.
+	if _, err := reg.EnsureFileCallers(ctx, runID); err != nil {
+		return stats, fmt.Errorf("create file callers: %w", err)
+	}
+
+	layout := infer.NewLayout(paths, dependencies)
+	// The packages the repository declares for itself, so `pkg::f()` in its own
+	// code is told from a call into somebody else's package.
+	own, err := reg.OwnPackages(ctx, runID)
+	if err != nil {
+		return stats, fmt.Errorf("read own packages: %w", err)
+	}
+	layout.SetOwnPackages(own)
+
+	cands := registry.NewCandidateCache(reg, runID, opts.CandidateBudget, registry.DefaultPerNameLimit)
+	resolver := infer.NewStreaming(cands, infer.Options{
+		MinConfidence: opts.MinConfidence,
+		Layout:        layout,
+		// A21 — supply the Ancestry port and the deferred inherited-dispatch
+		// pass switches on. Without it the resolver parks nothing and
+		// ResolveDeferred is a no-op, which is how this pass sat inert.
+		Ancestry: runAncestry{reg: reg, runID: runID},
+	})
+
+	var (
+		pending  = make([]model.Edge, 0, batch)
+		outcomes = make([]registry.RefOutcome, 0, batch*outcomeBatchFactor)
+		files    int64
+		// written counts edges that reached the table, which is NOT the number
+		// the resolver built: two references on different lines can produce the
+		// same edge, and INSERT OR IGNORE drops the repeat. Reporting the built
+		// count made `resolve` claim more relationships than `status` could
+		// find, and two commands disagreeing about one number is worse than
+		// either number being slightly off.
+		written int
+	)
+
+	flush := func() error {
+		if len(pending) == 0 && len(outcomes) == 0 {
+			return nil
+		}
+		if opts.OnFlush != nil {
+			opts.OnFlush(len(pending), len(outcomes))
+		}
+		n, err := reg.AddResolvedEdges(ctx, runID, pending)
+		if err != nil {
+			return fmt.Errorf("write edges: %w", err)
+		}
+		written += n
+		if err := reg.MarkResolutions(ctx, outcomes); err != nil {
+			return fmt.Errorf("record outcomes: %w", err)
+		}
+		pending = pending[:0]
+		outcomes = outcomes[:0]
+		return nil
+	}
+
+	err = reg.EachFilePageWithRefs(ctx, runID, func(page []registry.FileRefs) error {
+		// Warm the cache for the whole page before resolving any of it.
+		//
+		// Resolution asks for candidates per file, which on its own costs one
+		// round trip per file — 50,000 of them on a 50,000-file tree, which
+		// measured 31% slower than a preloaded index. Asking
+		// once per page amortises the trip across ~500 files while keeping the
+		// working set bounded by the page, not by the repository.
+		if names := pageNames(resolver, page); len(names) > 0 {
+			if _, err := cands.Candidates(ctx, names); err != nil {
+				return fmt.Errorf("prefetch candidates: %w", err)
+			}
+		}
+		for _, fr := range page {
+			if err := resolveOne(ctx, resolver, fr, &stats, &pending, &outcomes, flush, opts, &files); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return stats, err
+	}
+	if err := flush(); err != nil {
+		return stats, err
+	}
+
+	// A21 — the second pass for inherited method dispatch, and the ordering
+	// here IS the feature.
+	//
+	// `payment.settle()` where Payment extends BasePayment and only BasePayment
+	// declares settle cannot be bound while the loop above is running: the
+	// EXTENDS edge that proves Payment IS a BasePayment is itself produced by
+	// that loop, from an inheritance reference in some other file, and a tier
+	// consulting a hierarchy that is still growing would answer differently
+	// depending on which file was resolved first. Those references were parked
+	// instead.
+	//
+	// So this runs at the only honest moment: AFTER the last page (the
+	// hierarchy has stopped moving) and AFTER the flush above (the EXTENDS and
+	// IMPLEMENTS edges are in the table, which is where runAncestry reads
+	// them). Draining before that flush would ask the registry about edges
+	// still sitting in the buffer and find none — an inert pass that looked
+	// wired up.
+	//
+	// It is still inside Resolve, and therefore before any caller commits: the
+	// two-phase swap must publish a run whose graph includes these edges, not a
+	// run that has to be resolved a second time to get them.
+	deferredEdges, deferredOutcomes, err := resolver.ResolveDeferred(ctx, &stats)
+	if err != nil {
+		return stats, fmt.Errorf("resolve inherited dispatch: %w", err)
+	}
+	// Written in the same bounded batches the main loop uses. The parked queue
+	// is capped (infer.MaxDeferred) but that cap is 200,000, so appending its
+	// whole yield to one buffer would be the unbounded accumulation the
+	// buffers exist to prevent.
+	for len(deferredEdges) > 0 || len(deferredOutcomes) > 0 {
+		ne := min(len(deferredEdges), batch)
+		no := min(len(deferredOutcomes), batch*outcomeBatchFactor)
+		pending = append(pending, deferredEdges[:ne]...)
+		outcomes = append(outcomes, deferredOutcomes[:no]...)
+		deferredEdges, deferredOutcomes = deferredEdges[ne:], deferredOutcomes[no:]
+		if err := flush(); err != nil {
+			return stats, err
+		}
+	}
+
+	if _, err := reg.PruneFileCallers(ctx, runID); err != nil {
+		return stats, fmt.Errorf("prune file callers: %w", err)
+	}
+	if _, err := reg.PruneImpossibleEdges(ctx, runID); err != nil {
+		return stats, fmt.Errorf("prune impossible edges: %w", err)
+	}
+	// An explicit interface implementation is indexed as `I.M`, so it shares
+	// no name with the member it implements; the method-level IMPLEMENTS edge
+	// that says so needs the type-level edges the loop above wrote.
+	if _, err := reg.LinkExplicitImplementations(ctx, runID); err != nil {
+		return stats, fmt.Errorf("link explicit implementations: %w", err)
+	}
+
+	// The resolver counted edges it BUILT; report edges that landed. Set after
+	// the deferred drain so the total covers both passes.
+	stats.Edges = int64(written)
+
+	// Client calls bind in the same pass, for exactly the reason references and
+	// table accesses do: the endpoint a call targets may be declared by a file
+	// parsed long after the call was, so the earliest honest moment to bind is
+	// once the whole run has been seen. Doing it here rather than in a command
+	// of its own means a user who resolves gets a complete graph instead of one
+	// that is complete except for the part nobody remembered to run.
+	//
+	// A binding failure fails the pass. The rows are staged and idempotent, so
+	// the alternative — swallowing the error — would leave CONSUMES silently
+	// absent, which is the failure mode this whole feature exists to end.
+	// Endpoint handlers declared in another file bind here for the same reason.
+	// Without this pass the route is reported with no handler at all, and a
+	// blindspot gate counts every such route as an unmapped endpoint.
+	// Routes mounted from another file take their prefix first, so client
+	// calls below bind against the URL the service actually answers.
+	mounts, err := MountPythonRouters(ctx, reg, runID)
+	if err != nil {
+		return stats, fmt.Errorf("mount python routers: %w", err)
+	}
+	jsMounts, err := MountExpressRouters(ctx, reg, runID)
+	if err != nil {
+		return stats, fmt.Errorf("mount express routers: %w", err)
+	}
+	mounts.Mounts += jsMounts.Mounts
+	mounts.Renamed += jsMounts.Renamed
+	mounts.Ambiguous += jsMounts.Ambiguous
+	if !opts.SkipGoMounts {
+		goMounts, err := MountGoRouters(ctx, reg, runID)
+		if err != nil {
+			return stats, fmt.Errorf("mount go routers: %w", err)
+		}
+		mounts.Mounts += goMounts.Mounts
+		mounts.Renamed += goMounts.Renamed
+		mounts.Ambiguous += goMounts.Ambiguous
+	}
+	if opts.OnRouteMounts != nil {
+		opts.OnRouteMounts(mounts)
+	}
+
+	handlers, err := reg.BindEndpointHandlers(ctx, runID)
+	if err != nil {
+		return stats, fmt.Errorf("bind endpoint handlers: %w", err)
+	}
+	if opts.OnHandlers != nil {
+		opts.OnHandlers(handlers)
+	}
+
+	calls, err := reg.BindClientCalls(ctx, runID)
+	if err != nil {
+		return stats, fmt.Errorf("bind client calls: %w", err)
+	}
+	if opts.OnClientCalls != nil {
+		opts.OnClientCalls(calls)
+	}
+
+	// Deployment units bind last, and only after everything above.
+	//
+	// The join is "which endpoints are built from this unit's context", so it
+	// needs the endpoints to exist — they are written during indexing, so they
+	// do — and it needs the whole run to have been seen, because a build
+	// context is a directory and a directory is only complete once the walk is.
+	// Running it here rather than in a command of its own is the same argument
+	// the two passes above make: a user who resolves gets a graph that includes
+	// what their code runs as, instead of one that is complete except for the
+	// part nobody remembered to run.
+	//
+	// A failure fails the pass. The rows are staged and the pass is idempotent,
+	// so swallowing the error would leave a repository silently unable to
+	// answer "which service does this code run in" — which is the single
+	// question this whole feature exists for.
+	unitsBound, err := bindInfra(ctx, reg, runID)
+	if err != nil {
+		return stats, err
+	}
+	if opts.OnInfraUnits != nil {
+		opts.OnInfraUnits(unitsBound)
+	}
+
+	merged, err := reg.UnifyEventSymbols(ctx, runID)
+	if err != nil {
+		return stats, fmt.Errorf("unify event symbols: %w", err)
+	}
+	if opts.OnEventsMerged != nil {
+		opts.OnEventsMerged(merged)
+	}
+	return stats, nil
+}
+
+// runAncestry binds the registry's supertype read to one run, which is what
+// makes it satisfy infer.Ancestry.
+//
+// The adapter lives here rather than in the registry because the run id is
+// wiring, not a fact about the query: registry.Supertypes takes the run
+// explicitly like every other read in that file, and the port takes only the
+// names. Two lines here are cheaper than a second run-scoped type in the
+// adapter, and they keep the dependency pointing the way the layering rules require
+// — the consumer declares the interface, the pipeline supplies something that
+// fits it, and internal/resolve/infer never learns that a registry exists.
+type runAncestry struct {
+	reg   *registry.Registry
+	runID int64
+}
+
+// Supertypes answers the deferred pass's one question, run-scoped.
+func (a runAncestry) Supertypes(ctx context.Context, types []string) (map[string][]string, error) {
+	// Heuristic only: see Registry.HeuristicSupertypes. An incremental update
+	// must bind what a full index binds, and a full index has no compiler edge
+	// yet when it resolves.
+	return a.reg.HeuristicSupertypes(ctx, a.runID, types)
+}
+
+// Compile-time proof the adapter still satisfies the port. Cheap, and it fails
+// at build time rather than as a silently inert pass — which is exactly how
+// this pass spent its first life.
+var _ infer.Ancestry = runAncestry{}
+
+// pageNames collects the distinct names resolving a page of files will ask for.
+//
+// The resolver is asked rather than the references read directly, because what
+// a file needs is the resolver's decision: where a language's qualified names
+// state ownership it also looks up each receiver, and a warm-up that left
+// those out would hand every such file a round trip of its own.
+func pageNames(resolver *infer.Resolver, page []registry.FileRefs) []string {
+	seen := make(map[string]struct{}, 512)
+	var out []string
+	for _, fr := range page {
+		out = resolver.AppendNames(out, seen, fr)
+	}
+	return out
+}
+
+// resolveOne binds one file and buffers what it produced.
+func resolveOne(
+	ctx context.Context,
+	resolver *infer.Resolver,
+	fr registry.FileRefs,
+	stats *infer.Stats,
+	pending *[]model.Edge,
+	outcomes *[]registry.RefOutcome,
+	flush func() error,
+	opts ResolveOptions,
+	files *int64,
+) error {
+	{
+		edges, outs, err := resolver.ResolveFile(ctx, fr, stats)
+		if err != nil {
+			return err
+		}
+
+		*pending = append(*pending, edges...)
+		*outcomes = append(*outcomes, outs...)
+
+		*files++
+		if opts.OnProgress != nil {
+			opts.OnProgress(*files)
+		}
+
+		// Either buffer full is enough. Keying the flush on edges alone let the
+		// outcome buffer grow without bound on a repository that resolves
+		// poorly: a tree whose references are nearly all third-party produces
+		// almost no edges, so the edge buffer never filled and every one of the
+		// run's outcomes stayed resident until the final flush.
+		if len(*pending) >= resolveBatchOf(opts) || len(*outcomes) >= resolveBatchOf(opts)*outcomeBatchFactor {
+			return flush()
+		}
+		return nil
+	}
+}
+
+// resolveBatchOf is the effective edge-buffer bound for these options.
+func resolveBatchOf(opts ResolveOptions) int {
+	if opts.BatchSize > 0 {
+		return opts.BatchSize
+	}
+	return DefaultResolveBatch
+}

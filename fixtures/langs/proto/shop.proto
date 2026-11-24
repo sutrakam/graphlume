@@ -1,0 +1,98 @@
+syntax = "proto3";
+
+package shop.v1;
+
+import "google/protobuf/timestamp.proto";
+import public "other.proto";
+
+option go_package = "example.com/shop/v1;shopv1";
+
+// A product sold in the shop.
+message Product {
+  string id = 1;
+  string name = 2;
+  Money price = 3;
+  repeated string tags = 4;
+  map<string, string> labels = 5;
+  google.protobuf.Timestamp created = 6;
+
+  enum Status {
+    STATUS_UNSPECIFIED = 0;
+    ACTIVE = 1;
+    RETIRED = 2;
+  }
+
+  message Dimensions {
+    int32 width = 1;
+    int32 height = 2;
+
+    message Unit {
+      string symbol = 1;
+    }
+  }
+
+  Status status = 7;
+  Dimensions size = 8;
+
+  oneof discount {
+    int32 percent = 9;
+    Money amount = 10;
+  }
+
+  reserved 11, 12;
+  reserved "old_field";
+}
+
+message Money {
+  string currency = 1;
+  int64 units = 2;
+}
+
+enum Category {
+  option allow_alias = true;
+  CATEGORY_UNSPECIFIED = 0;
+  FOOD = 1;
+  TOYS = 2;
+  GAMES = 2;
+}
+
+service Catalog {
+  rpc GetProduct(GetProductRequest) returns (Product);
+  rpc ListProducts(ListProductsRequest) returns (stream Product);
+  rpc Upload(stream Product) returns (UploadSummary) {
+    option deprecated = true;
+  }
+  rpc Chat(stream Message) returns (stream Message);
+}
+
+message GetProductRequest {
+  string id = 1;
+}
+
+message ListProductsRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+}
+
+message UploadSummary {
+  int32 count = 1;
+}
+
+message Message {
+  string text = 1;
+}
+
+service Empty {}
+
+extend google.protobuf.MessageOptions {
+  optional string table_name = 50001;
+}
+
+message Legacy {
+  optional string name = 1;
+  extensions 100 to 199;
+
+  extend Product {
+    optional int32 rank = 100;
+  }
+}

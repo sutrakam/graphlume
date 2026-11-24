@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use GraphLume in your work, please cite it as below."
+title: "GraphLume"
+abstract: "A local-first code knowledge graph and MCP server for AI coding agents, with file:line evidence and a confidence level on every relationship."
+type: software
+authors:
+  - name: "Sutrakam"
+    website: "https://github.com/sutrakam"
+repository-code: "https://github.com/sutrakam/graphlume"
+url: "https://github.com/sutrakam/graphlume"
+license: Apache-2.0
+version: "1.0.0"
+date-released: "2026-11-24"
+keywords:
+  - code-intelligence
+  - knowledge-graph
+  - model-context-protocol
+  - mcp-server
+  - ai-coding-agents
+  - static-analysis
+  - code-search
+  - developer-tools

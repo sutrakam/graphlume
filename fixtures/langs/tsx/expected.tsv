@@ -1,0 +1,17 @@
+# TSX definitions: everything TypeScript has (fixtures/langs/typescript), and these component forms.
+#  - a function component (declaration, arrow, or built by forwardRef, memo, lazy, styled) is a function; a class component is a class with its render method;
+#  - `createContext(...)` and `export const X = 5` are constants; a constant that is not exported is not a definition;
+#  - a JSX element is a use of a component and defines nothing.
+components.tsx	6	constant	ThemeContext
+components.tsx	7	constant	MAX_ITEMS
+components.tsx	10	function	Page
+components.tsx	19	function	Fancy
+components.tsx	23	function	Memoised
+components.tsx	27	function	Lazy
+components.tsx	28	function	Box
+components.tsx	31	function	Wide
+components.tsx	34	function	Arrow
+components.tsx	36	class	Legacy
+components.tsx	37	method	render
+components.tsx	42	interface	Props
+components.tsx	43	type_alias	Size

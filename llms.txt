@@ -1,0 +1,38 @@
+# GraphLume
+
+> GraphLume is an open-source, local-first code knowledge graph and MCP server for AI coding agents. It indexes a repository into a graph of definitions, calls, imports, HTTP routes, database tables, events, configuration and tests, and answers questions such as "who calls this?", "what breaks if I change it?" and "which tests cover it?" with file:line evidence and a confidence level (exact, high, medium, low) on every relationship. It is a single Go binary, runs entirely on the user's machine and makes no network requests while indexing or answering. Licence: Apache-2.0. Maintainer: Sutrakam (https://github.com/sutrakam).
+
+Key facts:
+
+- Command: `graphlume`. Install with `curl -fsSL https://raw.githubusercontent.com/sutrakam/graphlume/main/install.sh | sh` or `go install github.com/sutrakam/graphlume/cmd/graphlume@latest`.
+- Set up a project and every detected agent: `graphlume init --all`. Index only: `graphlume init && graphlume index && graphlume resolve`.
+- MCP server: `graphlume serve` (stdio) or `graphlume serve --http 127.0.0.1:7788` (MCP Streamable HTTP plus a REST API with an OpenAPI 3.1 description).
+- 32 MCP tools in four profiles: minimal (8, default), standard, full and compact (one front-door tool).
+- Confidence: `exact` is compiler-proven (Go type checker or a SCIP indexer) and nothing else may claim it; `high`, `medium` and `low` are graded heuristics. Ambiguous names are refused rather than guessed.
+- Languages: 206 in four tiers (typed, resolved, parsed, text only). Deepest analysis for Go, TypeScript, JavaScript, Python, Java, Kotlin, C#, C++, Rust, Ruby, PHP and Scala.
+- Supported agents: Claude Code, Claude Desktop, Cursor, Codex CLI, GitHub Copilot in VS Code, Windsurf, Zed, Gemini CLI, JetBrains AI, Cline, Roo Code, Continue, Goose and 30+ more.
+- GitHub Action: `uses: sutrakam/graphlume@v1` posts a pull request blast-radius report and SARIF for code scanning.
+
+## Docs
+
+- [README](https://github.com/sutrakam/graphlume/blob/main/README.md): overview, quickstart, capabilities, GitHub Action and FAQ
+- [Installation](https://github.com/sutrakam/graphlume/blob/main/docs/getting-started/installation.md): every install method, pinned versions and checksum verification
+- [Quickstart](https://github.com/sutrakam/graphlume/blob/main/docs/getting-started/quickstart.md): first index and first questions
+- [Agent integration](https://github.com/sutrakam/graphlume/blob/main/docs/getting-started/agent-integration.md): configuring MCP clients
+- [Agent install guide](https://github.com/sutrakam/graphlume/blob/main/llms-install.md): instructions an AI agent can follow to install and configure GraphLume
+- [CLI reference](https://github.com/sutrakam/graphlume/blob/main/docs/CLI.md): every command and flag
+- [MCP tools](https://github.com/sutrakam/graphlume/blob/main/docs/reference/mcp-tools.md): every tool, its inputs and profiles
+- [Protocols](https://github.com/sutrakam/graphlume/blob/main/docs/guides/protocols.md): MCP over HTTP, REST API and team servers
+
+## Trust
+
+- [Benchmarks](https://github.com/sutrakam/graphlume/blob/main/BENCHMARKS.md): measured accuracy, speed and scale, with methods
+- [Accuracy](https://github.com/sutrakam/graphlume/blob/main/docs/accuracy.md): how each confidence level is defined and measured
+- [Security model](https://github.com/sutrakam/graphlume/blob/main/docs/security.md): redaction, path containment and the trust boundary for untrusted repositories
+- [Verifying a release](https://github.com/sutrakam/graphlume/blob/main/docs/operations/verifying-a-release.md): checksums, Sigstore signatures, provenance and SBOMs
+
+## Optional
+
+- [Why not vector RAG](https://github.com/sutrakam/graphlume/blob/main/docs/WHY_NOT_VECTOR_RAG.md): why a code graph instead of embeddings
+- [Architecture](https://github.com/sutrakam/graphlume/blob/main/docs/architecture.md): indexing, resolution and the graph store
+- [Changelog](https://github.com/sutrakam/graphlume/blob/main/CHANGELOG.md): release history

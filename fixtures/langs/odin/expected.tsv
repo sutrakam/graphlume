@@ -1,0 +1,37 @@
+# Odin: package-level procs (also inside foreign blocks and when/else blocks),
+# proc groups, structs/enums/unions/bit_fields/distinct types/bit_sets (class),
+# constants and package variables. Fields, enum members and local declarations
+# are not listed. A declaration with attributes starts on the attribute line.
+sample.odin	6	constant	MAX_ITEMS
+sample.odin	7	constant	Greeting
+sample.odin	8	constant	ratio
+sample.odin	10	variable	counter
+sample.odin	11	variable	limit
+sample.odin	13	class	Vec2
+sample.odin	18	class	Color
+sample.odin	24	class	Shape
+sample.odin	29	class	Circle
+sample.odin	34	class	Square
+sample.odin	39	class	Id
+sample.odin	41	class	Flags
+sample.odin	43	class	Pair
+sample.odin	48	function	add
+sample.odin	53	function	area
+sample.odin	63	function	swap
+sample.odin	67	function	length
+sample.odin	74	function	secret
+sample.odin	79	function	main
+sample.odin	85	function	add_f32
+sample.odin	89	function	add_any
+sample.odin	94	function	puts
+sample.odin	95	function	abs
+sample.odin	99	function	platform_name
+sample.odin	103	function	platform_name
+sample.odin	108	class	Tree
+sample.odin	113	function	insert
+sample.odin	120	class	Kind
+sample.odin	125	class	Option
+sample.odin	130	class	Mask
+sample.odin	135	class	Name
+sample.odin	137	variable	names
+sample.odin	138	variable	threshold

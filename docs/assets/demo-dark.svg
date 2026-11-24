@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="460" viewBox="0 0 1280 460" role="img" aria-labelledby="title desc">
+  <title id="title">GraphLume Terminal Output - Real Codebase Intelligence</title>
+  <desc id="desc">Terminal session running graphlume callers and graphlume languages with compiler-proven exactness.</desc>
+  <defs>
+    <linearGradient id="termBg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0b101e"/>
+      <stop offset="100%" stop-color="#070b14"/>
+    </linearGradient>
+    <filter id="termShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+
+  <!-- Container Box with Shadow -->
+  <rect x="1" y="1" width="1278" height="458" rx="14" fill="url(#termBg)" stroke="#1e293b" stroke-width="1.2" filter="url(#termShadow)"/>
+
+  <!-- Titlebar -->
+  <path d="M 1 15 A 14 14 0 0 1 15 1 L 1265 1 A 14 14 0 0 1 1279 15 L 1279 42 L 1 42 Z" fill="#111827"/>
+  <line x1="1" y1="42" x2="1279" y2="42" stroke="#1f2937" stroke-width="1"/>
+
+  <!-- Window controls -->
+  <circle cx="28" cy="21" r="5.5" fill="#ef4444"/>
+  <circle cx="48" cy="21" r="5.5" fill="#f59e0b"/>
+  <circle cx="68" cy="21" r="5.5" fill="#10b981"/>
+
+  <!-- Window title -->
+  <text x="640" y="26" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" fill="#94a3b8" letter-spacing="0.2">graphlume — real output, verified against compiler</text>
+
+  <!-- ================= TERMINAL CONTENT ================= -->
+  <!-- Command 1: graphlume callers -->
+  <g transform="translate(32, 78)">
+    <text font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" fill="#38bdf8" font-weight="700">$ <tspan fill="#f8fafc" font-weight="500">graphlume callers BindEndpointHandlers</tspan></text>
+    
+    <text y="28" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14.5" fill="#e2e8f0">
+      <tspan fill="#60a5fa" font-weight="600">BindEndpointHandlers</tspan> <tspan fill="#94a3b8">(method)</tspan> at <tspan fill="#cbd5e1">internal/registry/handlers.go:38</tspan>
+    </text>
+
+    <!-- Table Header -->
+    <text y="68" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13.5" font-weight="700" fill="#94a3b8" letter-spacing="0.5">
+      KIND    SYMBOL             EVIDENCE                                 CONFIDENCE
+    </text>
+
+    <!-- Table Row -->
+    <text y="92" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14.5" fill="#f1f5f9">
+      <tspan fill="#38bdf8">CALLS</tspan>   Resolve            <tspan fill="#cbd5e1">internal/pipeline/resolve.go:235</tspan>         <tspan fill="#34d399" font-weight="700">exact (compiler)</tspan>
+    </text>
+
+    <!-- Summary -->
+    <text y="124" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13.5" fill="#64748b">1 caller(s) recorded across 1 file. 0 dangling edges.</text>
+  </g>
+
+  <!-- Divider -->
+  <line x1="32" y1="235" x2="1248" y2="235" stroke="#1e293b" stroke-width="0.75" stroke-dasharray="4 4"/>
+
+  <!-- Command 2: graphlume languages -->
+  <g transform="translate(32, 275)">
+    <text font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" fill="#38bdf8" font-weight="700">$ <tspan fill="#f8fafc" font-weight="500">graphlume languages</tspan></text>
+
+    <!-- Table Header -->
+    <text y="30" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13.5" font-weight="700" fill="#94a3b8" letter-spacing="0.5">
+      TIER              COUNT  WHAT YOU GET
+    </text>
+
+    <!-- Row 1: typed -->
+    <text y="54" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" fill="#f8fafc">
+      <tspan fill="#34d399" font-weight="600">typed</tspan>             12     definitions, imports, receiver discrimination by arity or class — <tspan fill="#38bdf8">can reach 'high'</tspan>
+    </text>
+
+    <!-- Row 2: resolved -->
+    <text y="78" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" fill="#f8fafc">
+      <tspan fill="#60a5fa" font-weight="600">resolved</tspan>          35     definitions and imports — references bind across files (Vue, Svelte, TSX, Dart, Rust...)
+    </text>
+
+    <!-- Row 3: parsed -->
+    <text y="102" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" fill="#cbd5e1">
+      <tspan fill="#94a3b8">parsed</tspan>            68     definitions and search only — no cross-file references claimed
+    </text>
+
+    <!-- Summary -->
+    <text y="132" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13.5" fill="#64748b">
+      total             <tspan fill="#f1f5f9" font-weight="700">206 languages</tspan> supported local-first with zero telemetry.
+    </text>
+  </g>
+</svg>

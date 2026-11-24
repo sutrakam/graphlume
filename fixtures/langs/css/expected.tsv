@@ -1,0 +1,20 @@
+# CSS has no functions or types. A definition is a name another rule refers to:
+#   custom property declaration (--x: v), each declaration -> variable
+#   @keyframes, @property, @counter-style, @layer names, @font-face family -> class
+#   a top-level rule set whose entire selector is one bare .class or #id -> class
+# Not definitions: tag, compound, descendant, listed or pseudo selectors, rules nested
+# in @media/@layer/@supports, var() uses, @import, @media, @supports.
+sample.css	3	variable	--brand-color
+sample.css	4	variable	--gap
+sample.css	5	variable	--font-stack
+sample.css	9	variable	--brand-color
+sample.css	14	class	--angle
+sample.css	20	class	Fira Body
+sample.css	25	class	thumbs
+sample.css	31	class	reset
+sample.css	31	class	base
+sample.css	33	class	components
+sample.css	39	class	fade-in
+sample.css	53	class	slide-up
+sample.css	59	class	main-header
+sample.css	63	class	card

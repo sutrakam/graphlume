@@ -1,0 +1,20 @@
+{
+  "project": "graphlume",
+  "index_path": "/work/project/.graphlume/index.db",
+  "index_status": "ready",
+  "schema_version": 1,
+  "index_run": 1,
+  "git_revision": "6fadd51b76b45129669a667d0a93a45050be12ae",
+  "files": 724,
+  "symbols": 10743,
+  "relationships": 20640,
+  "parse_failures": 0,
+  "partial_parses": 0,
+  "last_indexed": "2026-11-12T14:27:34+05:30",
+  "index_size_bytes": 31162368,
+  "accuracy_mode": "auto",
+  "mcp_profile": "minimal",
+  "capabilities": [
+    "code"
+  ]
+}

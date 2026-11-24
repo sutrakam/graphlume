@@ -1,0 +1,520 @@
+package indexer
+
+import (
+	"context"
+	"fmt"
+	"io/fs"
+	"os"
+	"path"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	"github.com/sutrakam/graphlume/internal/errs"
+)
+
+// Language names a language GraphLume has a compiler-backed indexer for.
+//
+// The set is closed and matches Pins. A repository written in something else is
+// not "undetected because we failed" — there is simply no SCIP indexer wired up
+// for it, so `exact` makes no promise about it. See Plan.Err for why that
+// distinction is load-bearing.
+type Language string
+
+const (
+	LangGo         Language = "go"
+	LangTypeScript Language = "typescript"
+	LangJava       Language = "java"
+	LangPython     Language = "python"
+
+	// LangCPP is C and C++ together: scip-clang indexes both from one
+	// compilation database, and the project is the directory holding it.
+	LangCPP Language = "cpp"
+	// LangRust is a Cargo package, indexed by `rust-analyzer scip`.
+	LangRust Language = "rust"
+	// LangCSharp is a C# (.NET) project, indexed by `scip-dotnet`.
+	LangCSharp Language = "csharp"
+	// LangRuby is a Ruby project, indexed by `scip-ruby`.
+	LangRuby Language = "ruby"
+)
+
+// Project is one buildable unit found in the repository.
+type Project struct {
+	// Language is what the marker files say this directory is.
+	Language Language
+
+	// Dir is the sub-project root, slash-separated and relative to the
+	// repository root; "." for the repository root itself. Relative on purpose:
+	// it is safe to log (see internal/errs on Fields) and it is the only
+	// repository-derived value that reaches a subprocess.
+	Dir string
+
+	// Markers are the base names that identified the project, sorted. They are
+	// evidence for `graphlume indexers list` — "why did you decide this is a
+	// Gradle project" has to have an answer.
+	Markers []string
+}
+
+// String renders "java at services/api".
+func (p Project) String() string {
+	if p.Dir == "." {
+		return string(p.Language) + " at repository root"
+	}
+	return string(p.Language) + " at " + p.Dir
+}
+
+// marker maps a file name to the language its presence implies.
+//
+// The whole of detection is this table plus os.Stat. No marker file is ever
+// OPENED, which is the point: package.json's `scripts`, a Makefile's targets
+// and pom.xml's plugin list are all attacker-supplied program text, and the
+// moment any of them influences what GraphLume runs, cloning a repository
+// becomes code execution. Existence of a name cannot carry a payload.
+var markerLanguages = map[string]Language{
+	"pom.xml":          LangJava,
+	"build.gradle":     LangJava,
+	"build.gradle.kts": LangJava,
+
+	"tsconfig.json": LangTypeScript,
+	// package.json without a tsconfig.json still gets scip-typescript, which
+	// type-checks plain JavaScript with inferred settings. Detecting it does not
+	// mean reading it.
+	"package.json": LangTypeScript,
+	"deno.json":    LangTypeScript,
+	"deno.jsonc":   LangTypeScript,
+
+	"go.mod":  LangGo,
+	"go.work": LangGo,
+
+	"pyproject.toml":   LangPython,
+	"requirements.txt": LangPython,
+	"setup.py":         LangPython,
+	"setup.cfg":        LangPython,
+	"Pipfile":          LangPython,
+
+	// C and C++ have no manifest of their own. What scip-clang needs is a
+	// compilation database, so that file is the marker that lets it run; a
+	// CMake or Meson project without one is still detected, so that it can be
+	// reported as "cannot run, because there is no compile_commands.json"
+	// together with the command that makes one.
+	"compile_commands.json": LangCPP,
+	"CMakeLists.txt":        LangCPP,
+	"meson.build":           LangCPP,
+
+	"Cargo.toml": LangRust,
+
+	"Gemfile":  LangRuby,
+	"Rakefile": LangRuby,
+}
+
+// skipDirs are never descended into.
+//
+// node_modules is the important one: a mid-sized frontend repository has tens of
+// thousands of package.json files under it and not one of them is a project of
+// this repository. The rest are build output, which contains generated copies of
+// marker files.
+//
+// Dot-directories are skipped wholesale by the walk in addition to this list.
+// That loses a project living in a hidden directory, which no build system does
+// on purpose, and gains not walking .git, .cache or a committed .venv.
+var skipDirs = map[string]bool{
+	".git": true, "node_modules": true, "vendor": true,
+	"target": true, "build": true, "dist": true, "out": true,
+	".gradle": true, ".mvn": true, ".venv": true, "venv": true,
+	"__pycache__": true, ".tox": true, ".graphlume": true,
+	".idea": true, ".vscode": true, "testdata": true,
+	// Test fixtures hold sample projects on purpose (a Groovy build, a broken
+	// tsconfig), and planning them as real projects ran or blocked indexers on
+	// code nobody ships: "fixtures/langs/groovy: blocked: needs gradle".
+	// examples/ is deliberately NOT here: example apps are real code users
+	// read, and the Python run folds them into the project above anyway.
+	"fixtures": true, "__fixtures__": true,
+}
+
+// maxDetectDepth bounds how deep a sub-project may sit below the repository
+// root. Real monorepos nest two or three levels (services/api, packages/ui);
+// eight is generous. The bound exists so that a pathological or deliberately
+// deep tree cannot turn detection into an unbounded walk.
+const maxDetectDepth = 8
+
+// Detect finds every project in repoRoot.
+//
+// A monorepo yields several Projects, one per (directory, language) pair — a
+// directory holding both package.json and pyproject.toml is genuinely two
+// projects and gets two indexers. The result is sorted by directory then
+// language so that a plan is deterministic; `graphlume indexers list` printing a
+// different order on each run would be a bug report waiting to happen.
+//
+// Symbolic links are not followed. fs.WalkDir does not follow them, and that is
+// relied upon rather than merely tolerated: a repository can commit a symlink to
+// /, and following it would walk the machine.
+func Detect(ctx context.Context, repoRoot string) ([]Project, error) {
+	projects, _, err := detect(ctx, repoRoot)
+	return projects, err
+}
+
+// sourceLanguages maps the source extensions counted during detection to the
+// indexer language that would read them. Only languages whose project marker
+// can be absent while the code is real are counted: Python scripts with no
+// pyproject.toml, and C or C++ built by make or SCons, which leave no marker
+// at all.
+var sourceLanguages = map[string]Language{
+	".py": LangPython,
+	".c":  LangCPP, ".cc": LangCPP, ".cpp": LangCPP, ".cxx": LangCPP,
+	".h": LangCPP, ".hh": LangCPP, ".hpp": LangCPP, ".hxx": LangCPP,
+	".cs": LangCSharp,
+	".rb": LangRuby,
+}
+
+// detect is Detect plus a count of source files per language (see
+// sourceLanguages), from the same walk.
+func detect(ctx context.Context, repoRoot string) ([]Project, map[Language]int, error) {
+	info, err := os.Stat(repoRoot)
+	if err != nil {
+		return nil, nil, errs.Wrap(errs.KindNotFound, "indexer.Detect", err)
+	}
+	if !info.IsDir() {
+		return nil, nil, errs.New(errs.KindInvalid, "indexer.Detect", "repository root is not a directory")
+	}
+	sources := map[Language]int{}
+	var csSourceDirs []string
+
+	// Keyed by directory, then language, so several markers for one language
+	// collapse into one project carrying all of them as evidence.
+	found := map[string]map[Language][]string{}
+	var jsSourceDirs []string
+
+	walkErr := filepath.WalkDir(repoRoot, func(p string, d fs.DirEntry, err error) error {
+		// Checked first, and on every entry. This walks a whole repository, so
+		// without it a Ctrl-C during `graphlume indexers list` on a large tree
+		// is simply ignored until the walk finishes. internal/acquire/fs does
+		// the same thing in its own walker; this one had been missed.
+		if cerr := ctx.Err(); cerr != nil {
+			return cerr
+		}
+		if err != nil {
+			// An unreadable subdirectory is normal on a developer machine and
+			// is not a reason to abandon detection of everything else.
+			if d != nil && d.IsDir() {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		rel, relErr := filepath.Rel(repoRoot, p)
+		if relErr != nil {
+			// Unreachable in practice — WalkDir only ever hands back paths
+			// under repoRoot — and a path we cannot place relative to the root
+			// is one we must not index. Skipping it is the safe reading.
+			return nil //nolint:nilerr // deliberately skip, not abort the walk
+		}
+		rel = filepath.ToSlash(rel)
+
+		if d.IsDir() {
+			if rel == "." {
+				return nil
+			}
+			name := path.Base(rel)
+			if skipDirs[name] || strings.HasPrefix(name, ".") {
+				return fs.SkipDir
+			}
+			if strings.Count(rel, "/")+1 > maxDetectDepth {
+				return fs.SkipDir
+			}
+			return nil
+		}
+
+		if d.Type()&fs.ModeSymlink == 0 && tsSourceExt[path.Ext(rel)] {
+			jsSourceDirs = append(jsSourceDirs, path.Dir(rel))
+		}
+		if l, ok := sourceLanguages[strings.ToLower(path.Ext(rel))]; ok && d.Type()&fs.ModeSymlink == 0 {
+			sources[l]++
+			if l == LangCSharp {
+				csSourceDirs = append(csSourceDirs, path.Dir(rel))
+			}
+		}
+
+		base := path.Base(rel)
+		lang, ok := markerLanguages[base]
+		if !ok {
+			if strings.HasSuffix(base, ".csproj") || strings.HasSuffix(base, ".sln") {
+				lang, ok = LangCSharp, true
+			} else if strings.HasSuffix(base, ".gemspec") {
+				lang, ok = LangRuby, true
+			}
+		}
+		if !ok {
+			return nil
+		}
+		// A marker reached through a symlink is not evidence about this
+		// repository, and resolving it could point anywhere.
+		if d.Type()&fs.ModeSymlink != 0 {
+			return nil
+		}
+		dir := path.Dir(rel)
+		byLang := found[dir]
+		if byLang == nil {
+			byLang = map[Language][]string{}
+			found[dir] = byLang
+		}
+		byLang[lang] = append(byLang[lang], base)
+		return nil
+	})
+	if walkErr != nil {
+		return nil, nil, fmt.Errorf("indexer: walk %s: %w", repoRoot, walkErr)
+	}
+
+	var projects []Project
+	for dir, byLang := range found {
+		for lang, markers := range byLang {
+			sort.Strings(markers)
+			// A bare package.json (no tsconfig.json) only means "JavaScript may be
+			// here". scip-typescript indexes nothing in a directory with no .ts,
+			// .tsx, .js or .jsx files, and that run is a failed indexer, not a
+			// project. Keep the project only where such a file exists beneath it.
+			if lang == LangTypeScript && len(markers) == 1 && markers[0] == "package.json" {
+				if !hasSourceUnder(dir, jsSourceDirs) {
+					continue
+				}
+				if dir == "." {
+					_, _, isWS := findWorkspaceRoot(repoRoot, ".")
+					if !isWS && !hasUnclaimedSource(dir, jsSourceDirs, found) {
+						continue
+					}
+				}
+			}
+
+			// A Visual Studio solution names projects in any language: a C++
+			// game's doom.sln is not C#. Without a .csproj, the solution is C#
+			// only where .cs files lie beneath it.
+			if lang == LangCSharp && onlySolutions(markers) && !hasSourceUnder(dir, csSourceDirs) {
+				continue
+			}
+			if lang == LangJava {
+				hasGradlew := false
+				hasMvnw := false
+				for _, m := range markers {
+					if m == "gradlew" {
+						hasGradlew = true
+					}
+					if m == "mvnw" {
+						hasMvnw = true
+					}
+				}
+				if !hasGradlew {
+					curr := filepath.Join(repoRoot, dir)
+					for i := 0; i < 4; i++ {
+						if _, err := os.Stat(filepath.Join(curr, "gradlew")); err == nil {
+							markers = append(markers, "gradlew")
+							break
+						}
+						parent := filepath.Dir(curr)
+						if parent == curr || len(parent) < len(repoRoot) {
+							break
+						}
+						curr = parent
+					}
+				}
+				if !hasMvnw {
+					curr := filepath.Join(repoRoot, dir)
+					for i := 0; i < 4; i++ {
+						if _, err := os.Stat(filepath.Join(curr, "mvnw")); err == nil {
+							markers = append(markers, "mvnw")
+							break
+						}
+						parent := filepath.Dir(curr)
+						if parent == curr || len(parent) < len(repoRoot) {
+							break
+						}
+						curr = parent
+					}
+				}
+				sort.Strings(markers)
+			}
+			projects = append(projects, Project{Language: lang, Dir: dir, Markers: markers})
+		}
+	}
+	projects = foldNestedCPP(projects)
+	sort.Slice(projects, func(i, j int) bool {
+		if projects[i].Dir != projects[j].Dir {
+			return projects[i].Dir < projects[j].Dir
+		}
+		return projects[i].Language < projects[j].Language
+	})
+	return projects, sources, nil
+}
+
+// foldNestedCPP drops a C or C++ project that has no compilation database of
+// its own and lies beneath another C or C++ project. A CMake tree has a
+// CMakeLists.txt in every subdirectory, and they are one build: reporting each
+// as a project would print the same missing-database advice once per directory.
+// A directory with its own compile_commands.json stays, since that file is what
+// scip-clang is run against.
+func foldNestedCPP(projects []Project) []Project {
+	var cppDirs []string
+	for _, p := range projects {
+		if p.Language == LangCPP {
+			cppDirs = append(cppDirs, p.Dir)
+		}
+	}
+	out := projects[:0:0]
+	for _, p := range projects {
+		if p.Language == LangCPP && !p.hasMarker("compile_commands.json") {
+			nested := false
+			for _, d := range cppDirs {
+				if d != p.Dir && (d == "." || strings.HasPrefix(p.Dir, d+"/")) {
+					nested = true
+					break
+				}
+			}
+			if nested {
+				continue
+			}
+		}
+		out = append(out, p)
+	}
+	return out
+}
+
+// tsSourceExt are the extensions scip-typescript indexes as program input.
+var tsSourceExt = map[string]bool{".ts": true, ".tsx": true, ".js": true, ".jsx": true, ".vue": true}
+
+// hasSourceUnder reports whether any recorded source directory is dir or lies
+// beneath it. "." is the repository root and contains everything.
+func hasSourceUnder(dir string, sourceDirs []string) bool {
+	for _, sd := range sourceDirs {
+		if dir == "." || sd == dir || strings.HasPrefix(sd, dir+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+// hasUnclaimedSource reports whether any source directory belongs to dir and is
+// not contained within any subproject in found.
+func hasUnclaimedSource(dir string, sourceDirs []string, found map[string]map[Language][]string) bool {
+	for _, s := range sourceDirs {
+		if dir == "." {
+			// For the repository root with a bare package.json, scip-typescript --infer-tsconfig
+			// requires root source files or files in standard project directories (src, lib, app).
+			// Loose scripts in test tooling directories like postman/ or loadtest/ contain no
+			// program scip-typescript can index and make it exit 1 with "no files got indexed".
+			isRootSource := s == "." || strings.HasPrefix(s, "src/") || strings.HasPrefix(s, "lib/") ||
+				strings.HasPrefix(s, "app/") || s == "src" || s == "lib" || s == "app"
+			if !isRootSource {
+				continue
+			}
+		} else if s != dir && !strings.HasPrefix(s, dir+"/") {
+			continue
+		}
+		claimed := false
+		for otherDir := range found {
+			if otherDir == dir || otherDir == "." {
+				continue
+			}
+			if s == otherDir || strings.HasPrefix(s, otherDir+"/") {
+				claimed = true
+				break
+			}
+		}
+		if !claimed {
+			return true
+		}
+	}
+	return false
+}
+
+// onlySolutions reports whether every marker is a .sln file.
+func onlySolutions(markers []string) bool {
+	for _, m := range markers {
+		if !strings.HasSuffix(m, ".sln") {
+			return false
+		}
+	}
+	return true
+}
+
+// hasMarker reports whether the project was identified by this exact file name.
+// Used for the handful of decisions a marker name legitimately drives, such as
+// whether scip-typescript needs --infer-tsconfig.
+func (p Project) hasMarker(name string) bool {
+	for _, m := range p.Markers {
+		if m == name {
+			return true
+		}
+	}
+	return false
+}
+
+// Languages returns the distinct languages present in projects, sorted.
+func Languages(projects []Project) []Language {
+	seen := map[Language]bool{}
+	var out []Language
+	for _, p := range projects {
+		if !seen[p.Language] {
+			seen[p.Language] = true
+			out = append(out, p.Language)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
+	return out
+}
+
+// sanitizeRel vets a repository-relative directory before it is allowed to
+// become part of an argv or a file name.
+//
+// Only the docker runner needs this — every native invocation passes the
+// directory as Command.Dir, where it cannot be confused with a flag. Inside a
+// `docker run -w /work/<rel>` argument the value is still a single argv element,
+// so it cannot introduce a new flag, but "cannot" is a claim worth checking
+// rather than asserting: `..` would escape the mount and a leading dash would
+// become an option if the argument construction were ever refactored.
+func sanitizeRel(rel string) (string, error) {
+	if rel == "" || rel == "." {
+		return "", nil
+	}
+	clean := path.Clean(rel)
+	if clean != rel {
+		return "", fmt.Errorf("indexer: sub-project path %q is not in normal form", rel)
+	}
+	if path.IsAbs(clean) || strings.HasPrefix(clean, "../") || clean == ".." {
+		return "", fmt.Errorf("indexer: sub-project path %q escapes the repository", rel)
+	}
+	for _, seg := range strings.Split(clean, "/") {
+		if seg == "" || seg == "." || seg == ".." || strings.HasPrefix(seg, "-") {
+			return "", fmt.Errorf("indexer: sub-project path %q has an unusable segment", rel)
+		}
+	}
+	return clean, nil
+}
+
+// slugFor turns a project into a file name stem for its .scip output.
+//
+// The directory is repository-derived, so it is reduced to a conservative
+// character class rather than trusted. A directory called `../../etc` never
+// reaches here — sanitizeRel rejects it first — but the output path is created
+// by GraphLume inside its own temp directory, and a path traversal there would be
+// the one place this package writes outside the sandbox it promised.
+func slugFor(p Project) string {
+	var b strings.Builder
+	b.WriteString(string(p.Language))
+	if p.Dir != "" && p.Dir != "." {
+		b.WriteByte('-')
+		for _, r := range p.Dir {
+			switch {
+			case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
+				b.WriteRune(r)
+			default:
+				b.WriteByte('_')
+			}
+		}
+	}
+	s := b.String()
+	if len(s) > 96 {
+		s = s[:96]
+	}
+	return s
+}
+
+// OutputSlug is the file name stem under which an indexer's .scip output for p
+// is written, so a caller that keeps the output can find it again.
+func OutputSlug(p Project) string { return slugFor(p) }

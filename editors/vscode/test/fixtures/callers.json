@@ -1,0 +1,56 @@
+{
+  "is_error": false,
+  "result": {
+    "index_revision": 1,
+    "index_status": "ready",
+    "items": [
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 254,
+        "name": "TestParseToolArgTypes",
+        "path": "internal/cli/structure_test.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 264,
+        "name": "TestParseToolArgTypes",
+        "path": "internal/cli/structure_test.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 323,
+        "name": "newToolCallCmd",
+        "path": "internal/cli/tool.go",
+        "source": "source_code",
+        "why": "defined in the same file"
+      }
+    ],
+    "notes": [
+      "32615 references repository-wide are unresolved or ambiguous, so this list may be incomplete."
+    ],
+    "provenance": {
+      "age_seconds": 33,
+      "built_at_sha": "6fadd51b76b45129669a667d0a93a45050be12ae",
+      "caveat": "This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.",
+      "head_matches_build": true,
+      "head_sha": "6fadd51b76b45129669a667d0a93a45050be12ae"
+    },
+    "summary": "3 caller(s) of parseToolArg (internal/cli/tool.go:384).",
+    "verdict": {
+      "counts": {
+        "high": 3
+      },
+      "next_step": "No result fell below high confidence. Act on these, but verify before deleting anything.",
+      "status": "strong"
+    }
+  },
+  "text": "=== SYSTEM METADATA ===\n3 caller(s) of parseToolArg (internal/cli/tool.go:384).\nindex_revision: 1  status: ready\nnote: 32615 references repository-wide are unresolved or ambiguous, so this list may be incomplete.\nprovenance: This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.\nverdict: strong (high=3)\nnext_step: No result fell below high confidence. Act on these, but verify before deleting anything.\n\n=== INFERRED ===\n- calls TestParseToolArgTypes  internal/cli/structure_test.go:254  [confidence=high source=source_code]  (same package directory)\n- calls TestParseToolArgTypes  internal/cli/structure_test.go:264  [confidence=high source=source_code]  (same package directory)\n- calls newToolCallCmd  internal/cli/tool.go:323  [confidence=high source=source_code]  (defined in the same file)\n",
+  "tool": "callers"
+}

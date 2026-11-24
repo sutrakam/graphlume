@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/order.json",
+  "title": "Order",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string" },
+    "customer": { "$ref": "#/$defs/Customer" },
+    "lines": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/OrderLine" }
+    },
+    "definitions": {
+      "type": "string",
+      "description": "a property that happens to be called definitions"
+    }
+  },
+  "$defs": {
+    "Customer": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "address": { "$ref": "#/$defs/Address" }
+      }
+    },
+    "OrderLine": {
+      "type": "object",
+      "properties": {
+        "sku": { "type": "string" },
+        "quantity": { "type": "integer" },
+        "Customer": { "type": "string" }
+      }
+    },
+    "Address": {
+      "type": "object",
+      "$defs": {
+        "PostalCode": { "type": "string", "pattern": "^[0-9]{5}$" }
+      }
+    },
+    "Currency": { "enum": ["EUR", "USD"] },
+    "Flag": true
+  },
+  "definitions": {
+    "LegacyThing": { "type": "number" },
+    "With\"Quote": { "type": "string" }
+  },
+  "examples": [
+    { "$defs": { "NotASchemaDef": 1 } }
+  ]
+}

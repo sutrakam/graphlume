@@ -1,0 +1,19 @@
+# Python: classes, functions and methods (all listed as functions: a method is a function whose qualified name carries its class), and module-level constants.
+# Functions decorated @overload / @typing.overload are signatures, not definitions: they fold into the implementation that follows them, which is one definition starting at the first signature
+# (convert_type, K.get). A property getter and its setter stay two definitions; two plain definitions of one name (helper) stay two. Not definitions: imports, calls, base classes.
+sample.py	4	constant	T
+sample.py	7	class	ParamType
+sample.py	11	class	StringParamType
+sample.py	15	class	Pair
+sample.py	19	class	Proto
+sample.py	23	class	Plain
+sample.py	27	class	P2
+sample.py	31	class	P3
+sample.py	35	class	Multi
+sample.py	40	function	convert_type
+sample.py	49	class	K
+sample.py	51	function	get
+sample.py	58	function	val
+sample.py	62	function	val
+sample.py	66	function	helper
+sample.py	67	function	helper

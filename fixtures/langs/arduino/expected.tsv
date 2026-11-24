@@ -1,0 +1,74 @@
+# Arduino (C++ sketch) definitions. Rule:
+#  - a function definition or prototype at file or namespace scope is function; in a class body, with a qualified name (Sensor::read), or as a constructor, destructor (named with the ~) or operator, it is method;
+#  - class, struct, union and enum (also enum class) with a body are class; `typedef struct { } Name;` is class Name; other typedefs and `using Name = ...` are type_alias; namespace is package;
+#  - #define NAME is constant and #define NAME(args) is function;
+#  - a declaration at file or namespace scope (also inside #if / #else) is constant when its type says const or constexpr (a pointer to const too) and variable otherwise; arrays, pointers, `int a = 1, b = 2;` count; `Servo myServo;` is variable;
+#  - fields of a class, struct or union are field;
+#  - locals, parameters, enumerators and a forward declaration of a type (`class Led;`) are not definitions.
+sketch.ino	4	constant	LED_PIN
+sketch.ino	5	constant	BAUD
+sketch.ino	6	function	SQUARE
+sketch.ino	7	function	CLAMP
+sketch.ino	9	constant	buttonPin
+sketch.ino	10	constant	sampleCount
+sketch.ino	11	constant	pins
+sketch.ino	12	constant	greeting
+sketch.ino	14	variable	ledState
+sketch.ino	15	variable	a
+sketch.ino	15	variable	b
+sketch.ino	16	variable	lastChange
+sketch.ino	17	variable	lastReport
+sketch.ino	18	variable	flag
+sketch.ino	19	variable	readings
+sketch.ino	20	variable	grid
+sketch.ino	21	variable	buffer
+sketch.ino	22	variable	myServo
+sketch.ino	25	variable	debugLevel
+sketch.ino	27	variable	debugLevel
+sketch.ino	30	function	clampPin
+sketch.ino	31	function	report
+sketch.ino	33	function	setup
+sketch.ino	41	function	loop
+sketch.ino	50	function	clampPin
+sketch.ino	55	function	report
+sketch.ino	60	function	twice
+sketch.ino	64	function	nameOf
+types.ino	2	class	Point
+types.ino	3	field	x
+types.ino	4	field	y
+types.ino	7	class	Reading
+types.ino	8	field	value
+types.ino	9	field	label
+types.ino	10	field	history
+types.ino	11	field	next
+types.ino	14	type_alias	byte2
+types.ino	15	class	Pair
+types.ino	16	field	id
+types.ino	18	type_alias	Handler
+types.ino	19	type_alias	Callback
+types.ino	20	type_alias	Counter
+types.ino	22	class	Mode
+types.ino	23	class	State
+types.ino	25	class	Packet
+types.ino	26	field	whole
+types.ino	27	field	part
+types.ino	30	class	Sensor
+types.ino	32	method	Sensor
+types.ino	33	method	~Sensor
+types.ino	34	method	read
+types.ino	35	method	begin
+types.ino	36	method	operator==
+types.ino	37	field	count
+types.ino	40	field	pin
+types.ino	41	field	started
+types.ino	42	field	scale
+types.ino	47	method	Sensor
+types.ino	49	method	~Sensor
+types.ino	51	method	read
+types.ino	55	package	util
+types.ino	56	constant	limit
+types.ino	57	function	helper
+types.ino	63	function	maxOf
+types.ino	68	class	Buffer
+types.ino	70	method	push
+types.ino	71	field	items

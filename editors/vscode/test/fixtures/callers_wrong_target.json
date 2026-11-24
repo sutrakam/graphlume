@@ -1,0 +1,20 @@
+{
+  "is_error": false,
+  "result": {
+    "index_revision": 1,
+    "index_status": "ready",
+    "notes": [
+      "No results found — but this is a LOWER BOUND, not proof there are none. 32615 of 53080 references in this repository are unresolved or ambiguous, so a real reference may exist that GraphLume could not bind. Do not treat this as evidence the symbol is unused."
+    ],
+    "provenance": {
+      "age_seconds": 107,
+      "built_at_sha": "6fadd51b76b45129669a667d0a93a45050be12ae",
+      "caveat": "This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.",
+      "head_matches_build": true,
+      "head_sha": "6fadd51b76b45129669a667d0a93a45050be12ae"
+    },
+    "summary": "0 caller(s) of New (internal/capability/ownership/ownership.go:136)."
+  },
+  "text": "=== SYSTEM METADATA ===\n0 caller(s) of New (internal/capability/ownership/ownership.go:136).\nindex_revision: 1  status: ready\nnote: No results found — but this is a LOWER BOUND, not proof there are none. 32615 of 53080 references in this repository are unresolved or ambiguous, so a real reference may exist that GraphLume could not bind. Do not treat this as evidence the symbol is unused.\nprovenance: This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.\n",
+  "tool": "callers"
+}

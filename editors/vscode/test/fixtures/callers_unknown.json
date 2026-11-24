@@ -1,0 +1,34 @@
+{
+  "is_error": false,
+  "result": {
+    "index_revision": 1,
+    "index_status": "ready",
+    "notes": [
+      "COVERAGE UNKNOWN — relationship lookup for Ruby cannot be judged: GraphLume found no reference in any Ruby file of this index. This index holds 3 Ruby definition(s) in 1 file(s) and not one reference or relationship that starts in them, so nothing about callers can be concluded, and an empty result describes the parser, not the code. Running 'graphlume resolve' again will not change this. Do not present what follows as an answer to the question asked.",
+      "This result is a LOWER BOUND, not a complete answer. GraphLume reports only relationships it could resolve statically in the indexed run; anything it could not resolve is absent from this report, not absent from the code.",
+      "No results found — but this is a LOWER BOUND, not proof there are none. No reference spelled \"cents\" is recorded in this index, and none is recorded from any Ruby code, so its absence says nothing about whether the symbol is used. Do not treat this as evidence the symbol is unused."
+    ],
+    "page": {
+      "limit": 50,
+      "offset": 0,
+      "returned": 0,
+      "total": 0
+    },
+    "provenance": {
+      "age_seconds": 305,
+      "caveat": "HEAD could not be determined, so index freshness is unknown. This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.",
+      "head_matches_build": false
+    },
+    "reliability": {
+      "lead": "GraphLume found no reference in any Ruby file of this index; nothing about callers can be concluded.",
+      "level": "none",
+      "reasons": [
+        "COVERAGE UNKNOWN — relationship lookup for Ruby cannot be judged: GraphLume found no reference in any Ruby file of this index. This index holds 3 Ruby definition(s) in 1 file(s) and not one reference or relationship that starts in them, so nothing about callers can be concluded, and an empty result describes the parser, not the code. Running 'graphlume resolve' again will not change this. Do not present what follows as an answer to the question asked.",
+        "This result is a LOWER BOUND, not a complete answer. GraphLume reports only relationships it could resolve statically in the indexed run; anything it could not resolve is absent from this report, not absent from the code."
+      ]
+    },
+    "summary": "UNKNOWN — GraphLume found no reference in any Ruby file of this index; nothing about callers can be concluded. 0 caller(s) of cents (rb/lib/money.rb:2) are recorded."
+  },
+  "text": "=== SYSTEM METADATA ===\nUNKNOWN — GraphLume found no reference in any Ruby file of this index; nothing about callers can be concluded. 0 caller(s) of cents (rb/lib/money.rb:2) are recorded.\nindex_revision: 1  status: ready\nnote: COVERAGE UNKNOWN — relationship lookup for Ruby cannot be judged: GraphLume found no reference in any Ruby file of this index. This index holds 3 Ruby definition(s) in 1 file(s) and not one reference or relationship that starts in them, so nothing about callers can be concluded, and an empty result describes the parser, not the code. Running 'graphlume resolve' again will not change this. Do not present what follows as an answer to the question asked.\nnote: This result is a LOWER BOUND, not a complete answer. GraphLume reports only relationships it could resolve statically in the indexed run; anything it could not resolve is absent from this report, not absent from the code.\nnote: No results found — but this is a LOWER BOUND, not proof there are none. No reference spelled \"cents\" is recorded in this index, and none is recorded from any Ruby code, so its absence says nothing about whether the symbol is used. Do not treat this as evidence the symbol is unused.\nprovenance: HEAD could not be determined, so index freshness is unknown. This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.\n",
+  "tool": "callers"
+}

@@ -1,0 +1,98 @@
+{
+  "is_error": false,
+  "result": {
+    "index_revision": 1,
+    "index_status": "ready",
+    "items": [
+      {
+        "confidence": "high",
+        "kind": "test",
+        "name": "run",
+        "path": "internal/cli/cli_test.go",
+        "why": "found by graph"
+      },
+      {
+        "confidence": "high",
+        "kind": "test",
+        "name": "runInfra",
+        "path": "internal/cli/infra_test.go",
+        "why": "found by graph"
+      },
+      {
+        "confidence": "high",
+        "kind": "test",
+        "name": "restTestServer",
+        "path": "internal/cli/serve_rest_test.go",
+        "why": "found by graph"
+      },
+      {
+        "confidence": "high",
+        "kind": "test",
+        "name": "runWithStdin",
+        "path": "internal/cli/structure_test.go",
+        "why": "found by graph"
+      },
+      {
+        "confidence": "high",
+        "kind": "test",
+        "name": "TestParseToolArgTypes",
+        "path": "internal/cli/structure_test.go",
+        "why": "found by graph"
+      },
+      {
+        "confidence": "high",
+        "kind": "test",
+        "name": "TestEveryCommandHasAGroup",
+        "path": "internal/cli/structure_test.go",
+        "why": "found by graph"
+      },
+      {
+        "confidence": "high",
+        "kind": "test",
+        "name": "TestCommandNamesFollowTheConvention",
+        "path": "internal/cli/structure_test.go",
+        "why": "found by graph"
+      },
+      {
+        "confidence": "high",
+        "kind": "test",
+        "name": "TestEveryAgentToolHasACommand",
+        "path": "internal/cli/structure_test.go",
+        "why": "found by graph"
+      },
+      {
+        "confidence": "high",
+        "kind": "test",
+        "name": "openIndexedProject",
+        "path": "internal/pipeline/parity_test.go",
+        "why": "found by graph"
+      },
+      {
+        "confidence": "high",
+        "kind": "test",
+        "name": "graphlume",
+        "path": "tests/scale/index_scale_test.go",
+        "why": "found by graph"
+      }
+    ],
+    "provenance": {
+      "age_seconds": 37,
+      "built_at_sha": "6fadd51b76b45129669a667d0a93a45050be12ae",
+      "caveat": "This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.",
+      "head_matches_build": true,
+      "head_sha": "6fadd51b76b45129669a667d0a93a45050be12ae"
+    },
+    "summary": "parseToolArg: 10 test(s), 10 proven by a call edge.",
+    "truncated": true,
+    "truncated_reason": "depth limit 4 reached, and 10 node(s) at the limit were not expanded",
+    "verdict": {
+      "counts": {
+        "high": 10
+      },
+      "next_step": "No result fell below high confidence. Act on these, but verify before deleting anything.",
+      "status": "strong"
+    }
+  },
+  "text": "=== SYSTEM METADATA ===\nparseToolArg: 10 test(s), 10 proven by a call edge.\nindex_revision: 1  status: ready\ntruncated: depth limit 4 reached, and 10 node(s) at the limit were not expanded\nprovenance: This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.\nverdict: strong (high=10)\nnext_step: No result fell below high confidence. Act on these, but verify before deleting anything.\n\n=== INFERRED ===\n- test run  internal/cli/cli_test.go  [confidence=high]  (found by graph)\n- test runInfra  internal/cli/infra_test.go  [confidence=high]  (found by graph)\n- test restTestServer  internal/cli/serve_rest_test.go  [confidence=high]  (found by graph)\n- test runWithStdin  internal/cli/structure_test.go  [confidence=high]  (found by graph)\n- test TestParseToolArgTypes  internal/cli/structure_test.go  [confidence=high]  (found by graph)\n- test TestEveryCommandHasAGroup  internal/cli/structure_test.go  [confidence=high]  (found by graph)\n- test TestCommandNamesFollowTheConvention  internal/cli/structure_test.go  [confidence=high]  (found by graph)\n- test TestEveryAgentToolHasACommand  internal/cli/structure_test.go  [confidence=high]  (found by graph)\n- test openIndexedProject  internal/pipeline/parity_test.go  [confidence=high]  (found by graph)\n- test graphlume  tests/scale/index_scale_test.go  [confidence=high]  (found by graph)\n",
+  "tool": "tests"
+}

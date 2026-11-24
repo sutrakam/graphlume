@@ -1,0 +1,163 @@
+# OCaml. A definition is an item of the file, or of a module or signature written in the file,
+# at any depth of modules, `include struct` / `include sig` / `include module type of struct`,
+# `open struct`, constrained modules (`module M : sig ... end with type t := u`) and functor
+# parameter and result signatures. An item with an expression above it is not one: see below.
+#   let / let rec / and: function when it has parameters or its body is fun or function,
+#     variable otherwise (so `let pi = 3.14` and `let tm = structure "tm"` are variables);
+#     a parenthesised operator is named by the operator; `let () =`, `let _ =` and tuple
+#     patterns declare no name;
+#   val (.mli or sig): function when the type is a function type, variable otherwise;
+#   external -> function;
+#   type -> class for a variant, record, abstract or extensible type, type_alias for an alias;
+#   exception -> class; module -> package; module type -> interface;
+#   class -> class, class type -> interface, method -> method, instance variable (val) -> field.
+# Not definitions: let ... in inside an expression, let module (and everything in it), the
+# argument of a functor application (`Make (struct let seed = 1 end)`), a destructive
+# substitution (`type t := u`, in a signature or after `with`), variant constructors, record
+# fields, open and include.
+shapes.ml	2	variable	pi
+shapes.ml	4	function	square
+shapes.ml	6	function	fact
+shapes.ml	8	function	even
+shapes.ml	9	function	odd
+shapes.ml	11	function	|>>
+shapes.ml	13	function	+++
+shapes.ml	15	function	add_pair
+shapes.ml	17	function	area_of_circle
+shapes.ml	28	function	labelled
+shapes.ml	35	class	color
+shapes.ml	37	class	point
+shapes.ml	39	class	tree
+shapes.ml	43	type_alias	id
+shapes.ml	45	class	t
+shapes.ml	46	class	u
+shapes.ml	48	type_alias	shadow
+shapes.ml	50	class	Not_found_here
+shapes.ml	52	class	Bad
+shapes.ml	54	function	caml_hash
+shapes.ml	56	package	Geometry
+shapes.ml	57	variable	origin
+shapes.ml	59	function	distance
+shapes.ml	64	package	Inner
+shapes.ml	65	variable	deep
+shapes.ml	68	class	kind
+shapes.ml	71	interface	SHAPE
+shapes.ml	72	function	area
+shapes.ml	73	class	t
+shapes.ml	76	package	Make
+shapes.ml	77	function	scale
+shapes.ml	80	package	Alias
+shapes.ml	82	package	F
+shapes.ml	83	type_alias	t
+shapes.ml	84	function	area
+shapes.ml	87	class	counter
+shapes.ml	89	field	count
+shapes.ml	90	method	incr
+shapes.ml	91	method	get
+shapes.ml	92	method	reset
+shapes.ml	95	interface	printable
+shapes.ml	96	method	print
+shapes.ml	99	class	animal
+shapes.ml	100	method	name
+shapes.ml	103	function	use_local
+shapes.ml	108	variable	m
+shapes.mli	3	variable	pi
+shapes.mli	5	function	square
+shapes.mli	7	function	area_of_circle
+shapes.mli	10	function	+++
+shapes.mli	12	function	labelled
+shapes.mli	14	class	color
+shapes.mli	16	class	point
+shapes.mli	18	class	t
+shapes.mli	20	type_alias	id
+shapes.mli	22	class	tree
+shapes.mli	26	class	Bad
+shapes.mli	28	function	caml_hash
+shapes.mli	30	package	Geometry
+shapes.mli	31	variable	origin
+shapes.mli	33	function	distance
+shapes.mli	35	class	kind
+shapes.mli	38	interface	SHAPE
+shapes.mli	39	function	area
+shapes.mli	41	class	s
+shapes.mli	44	package	Make
+shapes.mli	45	function	scale
+shapes.mli	48	class	counter
+shapes.mli	49	method	incr
+shapes.mli	50	method	get
+shapes.mli	53	interface	printable
+shapes.mli	54	method	print
+more.ml	4	variable	limit
+more.ml	6	function	twice
+more.ml	8	function	typed
+more.ml	10	function	identity
+more.ml	12	function	classify
+more.ml	16	variable	parenthesised
+more.ml	18	variable	handler
+more.ml	20	function	fast
+more.ml	22	class	ext
+more.ml	24	type_alias	poly
+more.ml	26	type_alias	opt
+more.ml	28	class	private_t
+more.ml	30	package	Even
+more.ml	31	function	check
+more.ml	33	function	check
+more.ml	36	package	Odd
+more.ml	37	function	check
+more.ml	39	function	check
+more.ml	42	package	Applied
+more.ml	46	interface	ORD
+more.ml	47	class	t
+more.ml	48	function	compare
+more.ml	49	variable	default
+more.ml	50	package	Sub
+more.ml	51	variable	deeper
+more.ml	55	package	Outer
+more.ml	56	package	Middle
+more.ml	57	package	Innermost
+more.ml	58	variable	at_depth_three
+more.ml	63	function	run
+more.ml	73	class	shape_base
+more.ml	75	field	name
+more.ml	76	field	moves
+more.ml	77	method	area
+more.ml	78	method	describe
+more.ml	82	class	Failed
+more.ml	84	class	Alias
+more.ml	86	function	now
+shapes.mli	57	variable	callbacks
+includes.ml	2	package	Either
+includes.ml	3	package	Option
+includes.ml	7	variable	default_size
+includes.ml	8	function	make_name
+includes.ml	10	interface	Sized
+includes.ml	11	class	t
+includes.ml	13	function	size
+includes.ml	17	variable	nested_default
+includes.ml	21	package	Parts
+includes.ml	22	class	outer
+includes.ml	23	class	t
+includes.ml	25	function	fractional
+includes.ml	29	interface	Wrapped
+includes.ml	30	variable	wrapped
+includes.ml	34	package	Creators
+includes.ml	35	class	key
+includes.ml	36	function	hash
+includes.ml	38	class	table
+includes.ml	40	function	create
+includes.ml	43	package	Deep
+includes.ml	44	package	L1
+includes.ml	45	package	L2
+includes.ml	46	package	L3
+includes.ml	47	package	L4
+includes.ml	48	variable	bottom
+includes.ml	55	class	opaque
+includes.ml	57	function	outer_function
+includes.ml	67	package	Applied
+includes.mli	1	interface	S
+includes.mli	2	class	t
+includes.mli	5	function	length
+includes.mli	6	function	is_empty
+includes.mli	17	package	Inner
+includes.mli	18	variable	inner_size
+includes.mli	23	variable	last

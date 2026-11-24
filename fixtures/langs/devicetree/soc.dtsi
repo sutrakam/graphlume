@@ -1,0 +1,60 @@
+// SoC fragment shared by several boards.
+#include <dt-bindings/gpio/gpio.h>
+
+#define SOC_BASE 0x10000000
+
+/ {
+	soc: soc@10000000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+
+		intc: interrupt-controller@10140000 {
+			compatible = "arm,pl190";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+		};
+
+		spi0: spi@10170000 {
+			compatible = "arm,pl022";
+			reg = <0x10170000 0x1000>;
+
+			flash@0 {
+				compatible = "jedec,spi-nor";
+				reg = <0>;
+			};
+
+			touch@1 {
+				compatible = "vendor,touch-1";
+				reg = <1>;
+				interrupt-parent = <&intc>;
+			};
+		};
+
+		i2c0: a: i2c@10180000 {
+			clock-frequency = <400000>;
+
+			eeprom@50 {
+				compatible = "atmel,24c32";
+				reg = <0x50>;
+			};
+		};
+
+		timer@101e3000 {
+			compatible = "arm,sp804";
+			reg = <0x101e3000 0x1000>;
+		};
+	};
+};
+
+&intc {
+	status = "okay";
+};
+
+&spi0 {
+	/delete-node/ touch@1;
+	display@2 {
+		compatible = "vendor,display";
+		reg = <2>;
+	};
+};

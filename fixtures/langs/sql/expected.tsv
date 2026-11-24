@@ -1,0 +1,26 @@
+# SQL. Rule: the objects a file creates, other than tables. View, materialized
+# view and CREATE TYPE are class; function, procedure and trigger are function;
+# schema is package; index and sequence are variable (named database objects
+# that are neither code nor a type). The name is the object's own name, without
+# its schema (shop.order_totals is order_totals) and without quoting.
+# Tables and columns are NOT listed: the database scanner in internal/analyze
+# records them as `table` and `column` symbols, and a second symbol per table
+# would give every table two answers to one lookup.
+schema.sql	3	package	shop
+schema.sql	26	class	active_customers
+schema.sql	29	class	order_totals
+schema.sql	32	class	monthly_sales
+schema.sql	35	variable	idx_customers_email
+schema.sql	37	variable	uq_orders_customer
+schema.sql	39	variable	order_seq
+schema.sql	41	class	mood
+schema.sql	43	class	address
+schema.sql	45	function	add_one
+schema.sql	51	function	total_for
+schema.sql	55	function	archive_orders
+schema.sql	61	function	touch_row
+schema.sql	68	function	trg_touch
+mysql.sql	18	variable	idx_owner
+mysql.sql	20	class	rich_accounts
+mysql.sql	34	function	trg_audit
+mysql.sql	37	function	double_it

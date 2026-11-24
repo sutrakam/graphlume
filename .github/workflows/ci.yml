@@ -1,0 +1,198 @@
+name: CI
+
+# Manual only (Actions -> CI -> Run workflow), and only for the repository
+# owner: runs started by anyone else are skipped before any job starts. Jobs
+# form one chain, so the first failure stops everything after it.
+on:
+  workflow_dispatch:
+    inputs:
+      windows:
+        description: "Also run the full suite on Windows"
+        type: boolean
+        default: false
+      deep:
+        description: "Also run the slow gates (fuzz, scale, soak, latency, real repositories)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GO_VERSION: "1.26.11"
+  GOLANGCI_LINT_VERSION: "v2.15.0"
+
+jobs:
+  lint:
+    name: lint
+    if: github.triggering_actor == 'satyendrakumarsingh'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with: { go-version: "${{ env.GO_VERSION }}", cache: true }
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then echo "::error::run gofmt on:"; echo "$unformatted"; exit 1; fi
+      - name: go vet
+        run: |
+          go vet ./...
+          go vet -tags soak ./tests/soak/...
+          go vet -tags perf ./internal/context/...
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with: { version: "${{ env.GOLANGCI_LINT_VERSION }}" }
+      - name: go.mod is tidy
+        run: go mod tidy && git diff --exit-code go.mod go.sum
+      - name: THIRD_PARTY.md matches the module graph
+        run: go run ./cmd/graphlume licenses --check
+
+  test:
+    name: test
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-go@v7
+        with: { go-version: "${{ env.GO_VERSION }}", cache: true }
+      - name: unit and integration tests (race detector)
+        run: go test -race -timeout 20m ./...
+      - name: end-to-end on this repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          go build -o "$RUNNER_TEMP/graphlume" ./cmd/graphlume
+          gl="$RUNNER_TEMP/graphlume"
+          "$gl" init && "$gl" index && "$gl" resolve
+          "$gl" compile "Add a confidence floor to impact traversal" --json > "$RUNNER_TEMP/contract.json"
+          test -s "$RUNNER_TEMP/contract.json"
+          set +e
+          "$gl" verify --contract "$RUNNER_TEMP/contract.json" --changed internal/capability/impact/impact.go
+          code=$?
+          set -e
+          [ "$code" -lt 2 ] || { echo "::error::verify had nothing to check against (exit $code)"; exit 1; }
+          "$gl" accuracy > "$RUNNER_TEMP/accuracy.txt" 2>&1 || { cat "$RUNNER_TEMP/accuracy.txt"; exit 1; }
+          grep -q "NOT MEASURED\|Not measured" "$RUNNER_TEMP/accuracy.txt"
+          "$gl" docs --out "$RUNNER_TEMP/docs-a" && "$gl" docs --out "$RUNNER_TEMP/docs-b"
+          diff -u "$RUNNER_TEMP/docs-a/ARCHITECTURE.md" "$RUNNER_TEMP/docs-b/ARCHITECTURE.md"
+          diff -u "$RUNNER_TEMP/docs-a/CAPABILITIES.md" "$RUNNER_TEMP/docs-b/CAPABILITIES.md"
+      - name: retrieval benchmark on the bundled fixture
+        shell: bash
+        working-directory: fixtures/payment-platform
+        run: |
+          set -euo pipefail
+          gl="$RUNNER_TEMP/graphlume"
+          "$gl" init && "$gl" index && "$gl" resolve
+          "$gl" bench ../../fixtures/bench/payment.yml --fail-on-regression
+
+  build:
+    name: release targets and vulnerabilities
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with: { go-version: "${{ env.GO_VERSION }}", cache: true }
+      - name: cross-compile without CGO
+        env: { CGO_ENABLED: "0" }
+        run: |
+          set -euo pipefail
+          for target in darwin/amd64 darwin/arm64 linux/amd64 linux/arm64 windows/amd64; do
+            GOOS="${target%/*}" GOARCH="${target#*/}" go build -trimpath -o /dev/null ./cmd/graphlume
+          done
+      - uses: golang/govulncheck-action@032d45514ae346b1db93c04b0c90b841c370344f # v1.1.0
+        with:
+          go-version-input: "${{ env.GO_VERSION }}"
+          check-latest: false
+
+  windows:
+    name: windows
+    needs: build
+    if: inputs.windows
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with: { go-version: "${{ env.GO_VERSION }}", cache: true }
+      - name: installer script parses
+        shell: pwsh
+        run: |
+          $errs = $null
+          $null = [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path install.ps1).Path, [ref]$null, [ref]$errs)
+          if ($errs.Count -gt 0) { $errs | ForEach-Object { $_.ToString() }; exit 1 }
+      - name: test suite
+        run: go test -count=1 -timeout 30m ./...
+
+  deep:
+    name: deep (${{ matrix.gate }})
+    needs: build
+    if: inputs.deep
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - gate: fuzz
+            run: go test -run=NONE -fuzz=FuzzSplitIdentifier -fuzztime=5m ./internal/search/
+          - gate: scale
+            run: go test ./tests/scale/ -timeout 40m -scale.symbols=250000 -scale.source-files=5000 -scale.commits=2000
+          - gate: soak
+            run: go test -tags soak -race -timeout 45m ./tests/soak/... -soak.duration=8m
+          - gate: latency
+            run: go test -tags perf -timeout 25m -run 'TestP95|TestCatalogueCacheRemoves' ./internal/context/
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with: { go-version: "${{ env.GO_VERSION }}", cache: true }
+      - run: ${{ matrix.run }}
+
+  real-corpus:
+    name: real repository (${{ matrix.name }})
+    needs: build
+    if: inputs.deep
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { name: prometheus, url: "https://github.com/prometheus/prometheus.git", sha: "5e5b11dcff2fb914acfa1d312c226b0dcf5b9587" }
+          - { name: nest, url: "https://github.com/nestjs/nest.git", sha: "82cab543f85a7726b6cf8f23a1e4770fa7ed6034" }
+          - { name: commons-lang, url: "https://github.com/apache/commons-lang.git", sha: "e66ad3dd2e8538e24940d97179c960a60dd25495" }
+          - { name: scrapy, url: "https://github.com/scrapy/scrapy.git", sha: "c7eacdbb30a4563bbbe04ed02781768f4e19eabb" }
+    steps:
+      - uses: actions/checkout@v7
+        with: { path: graphlume }
+      - uses: actions/setup-go@v7
+        with: { go-version: "${{ env.GO_VERSION }}", cache-dependency-path: graphlume/go.sum }
+      - name: build
+        working-directory: graphlume
+        run: CGO_ENABLED=0 go build -o "$RUNNER_TEMP/graphlume" ./cmd/graphlume
+      - name: fetch ${{ matrix.name }} at its pinned revision
+        env: { URL: "${{ matrix.url }}", SHA: "${{ matrix.sha }}" }
+        run: |
+          git init --quiet corpus && cd corpus
+          git remote add origin "$URL"
+          git fetch --quiet --depth 1 origin "$SHA"
+          git checkout --quiet FETCH_HEAD
+      - name: index, check invariants and determinism
+        working-directory: corpus
+        run: |
+          set -euo pipefail
+          gl="$RUNNER_TEMP/graphlume"
+          "$gl" init && "$gl" index && "$gl" resolve
+          "$gl" status | grep -qE "Index: +(READY|DEGRADED)"
+          "$gl" doctor --verify-index
+          a=$("$gl" index --full --digest --json | grep -o '"registry_digest": *"[^"]*"')
+          b=$("$gl" index --full --digest --json | grep -o '"registry_digest": *"[^"]*"')
+          [ "$a" = "$b" ] || { echo "::error::two indexes of the same tree disagree"; exit 1; }

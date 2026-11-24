@@ -1,0 +1,27 @@
+# Less: a definition is
+#   a mixin definition .name(...) { } at the top level or in a namespace -> function
+#   an @variable or detached ruleset at the top level of the file -> variable
+#   a custom property (--x: v), each declaration -> variable
+#   @keyframes names -> class
+#   a top-level rule set whose entire selector is one bare .class or #id -> class
+#     (this includes #namespace, and a .class{} that is later called as a mixin)
+# Not definitions: @variables inside a rule or @media block, mixin calls (.rounded();),
+# nested and interpolated selectors (&-title, .@{x}-wide), compound selectors (.btn:hover),
+# @import, @plugin.
+sample.less	2	variable	@primary
+sample.less	3	variable	@spacing
+sample.less	4	variable	@font-stack
+sample.less	5	variable	@selector-name
+sample.less	8	variable	--surface
+sample.less	12	function	border-radius
+sample.less	16	function	button-variant
+sample.less	21	function	clearfix
+sample.less	28	function	size
+sample.less	33	class	rounded
+sample.less	37	class	namespace
+sample.less	38	function	mixin
+sample.less	41	function	helper
+sample.less	46	variable	@detached
+sample.less	53	class	pulse
+sample.less	58	class	card
+sample.less	76	class	sidebar

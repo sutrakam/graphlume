@@ -1,0 +1,67 @@
+# Vue single-file components, read through their <script> blocks (internal/parse/sfc.go).
+# Lines are lines of the .vue file. A definition is:
+#   the component itself: the file name, as a class at line 1 (not for names that are routes
+#     or companions such as [id].vue);
+#   function, class, interface, type, enum and method declarations the script language finds;
+#   a top-level const -> constant, let or var -> variable (a const bound to a function or arrow
+#     function stays a function);
+#   the names destructured from defineProps() -> field;
+#   in the default-exported options object (export default {}, defineComponent({}),
+#     module.exports = {}), a function-valued property, directly or one object down -> method.
+# A method written in object shorthand (get x() {}, onClick() {}) or a function-valued property is a
+#   method only in the component's own options object; in an object that is an argument of a call
+#   (createTable({ get data() {} }), computed(() => ({ f() {} }))) or is bound to a name it is not
+#   (Arguments.vue). Methods of a class are always methods.
+# Not definitions: anything inside a function body, imports, destructured bindings other than
+# props, a script inside an HTML comment, the template and style blocks.
+Classic.vue	1	class	Classic
+Classic.vue	7	method	data
+Classic.vue	11	method	greet
+Classic.vue	14	method	shout
+Counter.vue	1	class	Counter
+Counter.vue	8	interface	Props
+Counter.vue	13	type_alias	Handler
+Counter.vue	15	class	Mode
+Counter.vue	20	constant	props
+Counter.vue	21	constant	emit
+Counter.vue	22	constant	model
+Counter.vue	24	constant	MAX
+Counter.vue	25	variable	count
+Counter.vue	26	variable	legacy
+Counter.vue	27	constant	doubled
+Counter.vue	29	function	format
+Counter.vue	30	function	parse
+Counter.vue	34	function	increment
+Counter.vue	41	function	load
+Counter.vue	46	class	Tracker
+Counter.vue	47	field	total
+Counter.vue	48	method	add
+Generic.vue	1	class	Generic
+Generic.vue	3	constant	SHARED
+Generic.vue	5	function	sharedHelper
+Generic.vue	11	field	rows
+Generic.vue	11	field	selected
+Generic.vue	13	function	pick
+Options.vue	1	class	Options
+Options.vue	10	constant	PAGE_SIZE
+Options.vue	12	function	helper
+Options.vue	20	method	data
+Options.vue	24	method	total
+Options.vue	27	method	pages
+Options.vue	32	method	page
+Options.vue	35	method	items
+Options.vue	37	method	created
+Options.vue	41	method	pluralize
+Options.vue	42	method	load
+Options.vue	46	method	reset
+Plain.vue	1	class	Plain
+[id].vue	4	constant	route
+[id].vue	5	constant	id
+[id].vue	7	function	back
+Arguments.vue	1	class	Arguments
+Arguments.vue	4	constant	rows
+Arguments.vue	11	constant	table
+Arguments.vue	26	constant	lookup
+Arguments.vue	30	function	save
+Arguments.vue	36	method	title
+Arguments.vue	40	method	run

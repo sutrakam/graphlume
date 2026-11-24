@@ -1,0 +1,228 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420" role="img" aria-labelledby="title desc">
+  <title id="title">GraphLume - Local Code Intelligence for AI Coding Agents</title>
+  <desc id="desc">GraphLume provides compiler-accurate code graphs, call trees, blast radius, API routes, and table access for Claude Code, Cursor, Copilot, and other AI agents.</desc>
+  <defs>
+    <!-- Background Gradients -->
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="50%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#f1f5f9"/>
+    </linearGradient>
+    <radialGradient id="meshGlowLeft" cx="20%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="meshGlowRight" cx="80%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.12"/>
+      <stop offset="50%" stop-color="#3b82f6" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Grid Pattern -->
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M 32 0 L 0 0 0 32" fill="none" stroke="#cbd5e1" stroke-width="0.75" stroke-opacity="0.55"/>
+    </pattern>
+
+    <!-- Node Card Glow & Shadows -->
+    <filter id="cardGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="10" flood-color="#64748b" flood-opacity="0.14"/>
+    </filter>
+    <filter id="nodeActiveGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="#059669" flood-opacity="0.25"/>
+    </filter>
+    <filter id="blueActiveGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="#2563eb" flood-opacity="0.25"/>
+    </filter>
+
+    <!-- Title Gradient -->
+    <linearGradient id="textGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="70%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+
+    <!-- Edge Gradients -->
+    <linearGradient id="edgeExact" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#10b981"/>
+    </linearGradient>
+    <linearGradient id="edgeHigh" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </linearGradient>
+    <linearGradient id="edgeInferred" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d97706"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Base Canvas -->
+  <rect width="1280" height="420" rx="16" fill="url(#bg)"/>
+  <rect width="1280" height="420" rx="16" fill="url(#grid)"/>
+  <rect width="1280" height="420" rx="16" fill="url(#meshGlowLeft)"/>
+  <rect width="1280" height="420" rx="16" fill="url(#meshGlowRight)"/>
+  <rect width="1278" height="418" x="1" y="1" rx="15" fill="none" stroke="#e2e8f0" stroke-width="1.2"/>
+
+  <!-- ==================== LEFT COLUMN: BRAND & VALUE ==================== -->
+  <g transform="translate(64, 44)">
+    <!-- Category Pill -->
+    <rect x="0" y="0" width="310" height="28" rx="14" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+    <circle cx="14" cy="14" r="4.5" fill="#059669"/>
+    <text x="26" y="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11.5" font-weight="700" letter-spacing="1.2" fill="#0284c7">LOCAL CODE INTELLIGENCE · MCP</text>
+
+    <!-- Brand Header -->
+    <text x="0" y="86" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="64" font-weight="800" letter-spacing="-1.8" fill="url(#textGrad)">GraphLume</text>
+
+    <!-- Subtitle / Tagline -->
+    <text x="0" y="128" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="20" font-weight="600" fill="#0f172a">
+      Your AI agent reads code. GraphLume gives it the map.
+    </text>
+    <text x="0" y="156" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="400" fill="#475569" letter-spacing="-0.2">
+      Compiler-proven callers, blast radius, HTTP routes, SQL tables &amp; tests in one tool call.
+    </text>
+    <text x="0" y="178" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="400" fill="#475569" letter-spacing="-0.2">
+      Runs 100% locally on your machine. Your code never leaves it.
+    </text>
+
+    <!-- Key Metrics / Feature Badges -->
+    <g transform="translate(0, 220)">
+      <!-- Badge 1: Local -->
+      <g transform="translate(0, 0)">
+        <rect width="138" height="34" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+        <path d="M14 17 L18 21 L26 13" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <text x="34" y="21.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace" font-size="12.5" font-weight="600" fill="#0f172a">100% Local</text>
+      </g>
+      <!-- Badge 2: Exactness -->
+      <g transform="translate(148, 0)">
+        <rect width="158" height="34" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+        <circle cx="16" cy="17" r="4" fill="#2563eb"/>
+        <text x="28" y="21.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace" font-size="12.5" font-weight="600" fill="#0f172a">Compiler-Proven</text>
+      </g>
+      <!-- Badge 3: Single Binary -->
+      <g transform="translate(316, 0)">
+        <rect width="128" height="34" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+        <text x="14" y="21.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace" font-size="12.5" font-weight="600" fill="#334155">1 Static Binary</text>
+      </g>
+      <!-- Badge 4: Tool Count -->
+      <g transform="translate(454, 0)">
+        <rect width="120" height="34" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+        <text x="14" y="21.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace" font-size="12.5" font-weight="600" fill="#334155">32 MCP Tools</text>
+      </g>
+    </g>
+
+    <!-- Legend bar at bottom -->
+    <g transform="translate(0, 290)">
+      <line x1="0" y1="0" x2="18" y2="0" stroke="#059669" stroke-width="3" stroke-linecap="round"/>
+      <text x="26" y="4" font-family="ui-monospace, SFMono-Regular, monospace" font-size="11.5" font-weight="500" fill="#475569">exact (compiler)</text>
+
+      <line x1="160" y1="0" x2="178" y2="0" stroke="#2563eb" stroke-width="3" stroke-linecap="round"/>
+      <text x="186" y="4" font-family="ui-monospace, SFMono-Regular, monospace" font-size="11.5" font-weight="500" fill="#475569">high (AST typed)</text>
+
+      <line x1="315" y1="0" x2="333" y2="0" stroke="#d97706" stroke-width="3" stroke-linecap="round" stroke-dasharray="4 3"/>
+      <text x="341" y="4" font-family="ui-monospace, SFMono-Regular, monospace" font-size="11.5" font-weight="500" fill="#475569">inferred / resolved</text>
+    </g>
+  </g>
+
+  <!-- ==================== RIGHT COLUMN: CODE GRAPH VISUALIZATION ==================== -->
+  <g transform="translate(680, 28)">
+    <!-- Graph Background Card Container -->
+    <rect width="540" height="364" rx="14" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.2" filter="url(#cardGlow)"/>
+    
+    <!-- Window controls decoration -->
+    <g transform="translate(18, 16)">
+      <circle cx="0" cy="0" r="4.5" fill="#ef4444" opacity="0.8"/>
+      <circle cx="14" cy="0" r="4.5" fill="#f59e0b" opacity="0.8"/>
+      <circle cx="28" cy="0" r="4.5" fill="#10b981" opacity="0.8"/>
+      <text x="44" y="4" font-family="ui-monospace, SFMono-Regular, monospace" font-size="11" fill="#64748b">live code graph &amp; blast-radius trace</text>
+    </g>
+    <line x1="0" y1="32" x2="540" y2="32" stroke="#f1f5f9" stroke-width="1"/>
+
+    <!-- ================= GRAPH EDGES (CURVED BEZIERS) ================= -->
+    <!-- Edge: Route -> Handler (Exact) -->
+    <path d="M 120 90 C 160 90, 170 145, 210 145" fill="none" stroke="url(#edgeExact)" stroke-width="2.2" stroke-linecap="round"/>
+    
+    <!-- Edge: Handler -> Core Service (Exact) -->
+    <path d="M 330 145 C 360 145, 360 190, 390 190" fill="none" stroke="url(#edgeExact)" stroke-width="2.5" stroke-linecap="round"/>
+
+    <!-- Edge: Caller -> Handler (Exact) -->
+    <path d="M 120 180 C 160 180, 170 155, 210 155" fill="none" stroke="url(#edgeExact)" stroke-width="2.2" stroke-linecap="round"/>
+
+    <!-- Edge: Service -> SQL Table (High) -->
+    <path d="M 440 215 C 440 245, 330 260, 270 270" fill="none" stroke="url(#edgeHigh)" stroke-width="2" stroke-linecap="round"/>
+
+    <!-- Edge: Service -> Event Publisher (Inferred/High) -->
+    <path d="M 460 215 C 460 270, 440 280, 420 295" fill="none" stroke="url(#edgeInferred)" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="5 4"/>
+
+    <!-- Edge: Test -> Service (Exact) -->
+    <path d="M 390 85 C 430 85, 440 130, 440 165" fill="none" stroke="url(#edgeExact)" stroke-width="2" stroke-linecap="round"/>
+
+    <!-- ================= GRAPH NODES ================= -->
+
+    <!-- NODE 1: HTTP API Route (Top Left) -->
+    <g transform="translate(24, 72)">
+      <rect width="116" height="36" rx="7" fill="#f0f9ff" stroke="#bae6fd" stroke-width="1.2"/>
+      <rect x="6" y="8" width="34" height="20" rx="4" fill="#0284c7"/>
+      <text x="11" y="22" font-family="ui-monospace, monospace" font-size="9.5" font-weight="700" fill="#ffffff">POST</text>
+      <text x="46" y="23" font-family="ui-monospace, monospace" font-size="11" font-weight="600" fill="#0369a1">/orders</text>
+    </g>
+
+    <!-- NODE 2: Upstream Caller (Mid Left) -->
+    <g transform="translate(24, 162)">
+      <rect width="116" height="36" rx="7" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1"/>
+      <text x="10" y="16" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="9" font-weight="700" fill="#64748b">CALLER</text>
+      <text x="10" y="29" font-family="ui-monospace, monospace" font-size="11" font-weight="600" fill="#334155">SyncWorker</text>
+    </g>
+
+    <!-- NODE 3: Intermediate Handler (Center) -->
+    <g transform="translate(200, 126)">
+      <rect width="134" height="42" rx="8" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.4" filter="url(#blueActiveGlow)"/>
+      <text x="10" y="17" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="9" font-weight="700" fill="#1d4ed8">CONTROLLER</text>
+      <text x="10" y="32" font-family="ui-monospace, monospace" font-size="11.5" font-weight="700" fill="#0f172a">CreateOrder()</text>
+      <!-- Evidence tag -->
+      <rect x="86" y="6" width="40" height="15" rx="3" fill="#bfdbfe"/>
+      <text x="91" y="17" font-family="ui-monospace, monospace" font-size="8.5" font-weight="700" fill="#1e40af">exact</text>
+    </g>
+
+    <!-- NODE 4: Target Service / Focus Function (Right Center) -->
+    <g transform="translate(380, 165)">
+      <rect width="144" height="50" rx="9" fill="#ecfdf5" stroke="#10b981" stroke-width="1.8" filter="url(#nodeActiveGlow)"/>
+      <circle cx="16" cy="18" r="4.5" fill="#059669"/>
+      <text x="26" y="21" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="9.5" font-weight="800" fill="#047857">TARGET FUNCTION</text>
+      <text x="12" y="39" font-family="ui-monospace, monospace" font-size="12" font-weight="800" fill="#064e3b">ProcessPayment()</text>
+      <!-- Compiler badge -->
+      <rect x="78" y="30" width="56" height="15" rx="3" fill="#a7f3d0"/>
+      <text x="83" y="41" font-family="ui-monospace, monospace" font-size="8.5" font-weight="700" fill="#065f46">proven</text>
+    </g>
+
+    <!-- NODE 5: Test Guard (Top Right) -->
+    <g transform="translate(340, 68)">
+      <rect width="128" height="34" rx="7" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1"/>
+      <path d="M10 17 L14 21 L20 13" fill="none" stroke="#059669" stroke-width="1.8" stroke-linecap="round"/>
+      <text x="26" y="21.5" font-family="ui-monospace, monospace" font-size="10.5" font-weight="600" fill="#1e293b">TestPayment()</text>
+    </g>
+
+    <!-- NODE 6: SQL Database Table (Bottom Center) -->
+    <g transform="translate(170, 256)">
+      <rect width="128" height="36" rx="7" fill="#faf5ff" stroke="#c084fc" stroke-width="1.2"/>
+      <!-- Database icon representation -->
+      <path d="M 12 14 C 12 11, 26 11, 26 14 C 26 17, 12 17, 12 14 Z M 12 17 C 12 20, 26 20, 26 17 M 12 21 C 12 24, 26 24, 26 21" fill="none" stroke="#9333ea" stroke-width="1.4"/>
+      <text x="34" y="16" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="8.5" font-weight="700" fill="#7e22ce">SQL TABLE (WRITE)</text>
+      <text x="34" y="29" font-family="ui-monospace, monospace" font-size="11" font-weight="700" fill="#3b0764">orders</text>
+    </g>
+
+    <!-- NODE 7: Event Bus Binding (Bottom Right) -->
+    <g transform="translate(340, 285)">
+      <rect width="140" height="36" rx="7" fill="#fffbeb" stroke="#fcd34d" stroke-width="1.2"/>
+      <text x="12" y="16" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="8.5" font-weight="700" fill="#b45309">EVENT EMIT (KAFKA)</text>
+      <text x="12" y="29" font-family="ui-monospace, monospace" font-size="10.5" font-weight="700" fill="#78350f">order.paid</text>
+    </g>
+
+    <!-- Bottom summary banner inside card -->
+    <g transform="translate(18, 330)">
+      <rect width="504" height="22" rx="5" fill="#f1f5f9"/>
+      <text x="12" y="15" font-family="ui-monospace, monospace" font-size="10.5" fill="#475569">
+        <tspan fill="#059669" font-weight="700">✓ 88.8% exact</tspan> · 11 direct callers · 1 table written · 1 test guards this
+      </text>
+    </g>
+  </g>
+</svg>

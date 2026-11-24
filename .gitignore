@@ -1,0 +1,70 @@
+# Binaries and build artifacts
+/graphlume
+/dist/
+/bin/
+*.exe
+*.test
+*.out
+*.dylib
+*.so
+*.dll
+
+# Index artifacts — never commit a registry or local graph databases
+.graphlume/
+*.scip
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# Go artifacts
+/vendor/
+coverage.out
+coverage.html
+*.prof
+*.pprof
+
+# IDEs, Editors & Operating Systems
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.bak
+
+# AI agent local workspaces, tool caches & scratch directories
+.claude/
+.cursor/
+.gemini/
+.superpowers/
+.copilot/
+scratch/
+tmp/
+graphlume-out/
+*.log
+
+# Sensitive environment and key files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+
+# VS Code extension: installed dependencies, compiled output and packages
+editors/vscode/node_modules/
+editors/vscode/out/
+editors/vscode/*.vsix
+
+# Maintainer notes kept on disk and never published.
+docs/internal/
+docs/archive/
+/scripts/compat/out/

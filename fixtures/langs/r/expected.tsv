@@ -1,0 +1,26 @@
+# R: file-level functions (name <- function, name = function, name <<- function,
+# backtick and quoted names), setGeneric (function), setMethod and the methods
+# lists of setRefClass / R6Class (method), setClass / setRefClass / R6Class (class).
+# Plain assignments (x <- 10), nested functions and functions in loops are not listed.
+sample.R	7	function	add
+sample.R	12	function	square
+sample.R	14	function	scale_all
+sample.R	16	function	describe
+sample.R	21	function	`%+%`
+sample.R	23	function	quoted_fn
+sample.R	25	function	compute
+sample.R	32	class	Person
+sample.R	34	class	Account
+sample.R	36	function	deposit
+sample.R	38	method	deposit
+sample.R	45	class	Stack
+sample.R	48	method	push
+sample.R	51	method	size
+sample.R	55	function	print.person
+sample.R	59	function	make_counter
+sample.R	71	function	inside_if
+sample.R	74	class	Queue
+sample.R	77	method	enqueue
+sample.R	83	method	check
+sample.R	87	class	Counter
+sample.R	89	method	increment

@@ -1,0 +1,97 @@
+# Zig definition rule. Recorded at file level and inside struct/enum/union: a const or var whose
+# value is a struct/enum/union/opaque or an error set (class); a const that is a builtin type, a
+# function type, or a TitleCase name bound to a name, field access or call (type_alias); any other
+# const (constant) and any var, also threadlocal (variable). Functions (function, or method inside a
+# struct/enum/union); struct and union fields (field); enum variants (constant); string-named
+# test blocks (function, named by the string).
+# A container written as the type of a local variable, or inside a function body, keeps no members
+# (a function there is a function, build.zig 43). Not recorded: @import bindings and "const Self = @This()", locals (declarations in a function
+# body), error set members, "test name {}" doc tests, comptime blocks.
+# A file that is itself a struct (const Self = @This();) declares its fields at file level: each is a field (Store.zig).
+stack.zig	2	constant	mem
+stack.zig	3	type_alias	Allocator
+stack.zig	4	constant	assert
+stack.zig	6	constant	max_items
+stack.zig	7	constant	default_name
+stack.zig	8	variable	counter
+stack.zig	9	variable	scratch
+stack.zig	10	variable	depth
+stack.zig	12	class	Error
+stack.zig	13	class	ParseError
+stack.zig	15	class	Color
+stack.zig	16	constant	red
+stack.zig	17	constant	green
+stack.zig	18	constant	blue
+stack.zig	20	method	isWarm
+stack.zig	24	constant	count
+stack.zig	27	class	Shape
+stack.zig	28	field	circle
+stack.zig	29	field	square
+stack.zig	31	method	area
+stack.zig	39	class	Point
+stack.zig	40	field	x
+stack.zig	41	field	y
+stack.zig	43	constant	origin
+stack.zig	45	method	init
+stack.zig	49	method	add
+stack.zig	53	method	private
+stack.zig	58	class	Pair
+stack.zig	58	field	a
+stack.zig	58	field	b
+stack.zig	59	class	Packed
+stack.zig	59	field	flag
+stack.zig	59	field	rest
+stack.zig	60	type_alias	Handler
+stack.zig	61	type_alias	Alias
+stack.zig	62	type_alias	Mapped
+stack.zig	64	function	Stack
+stack.zig	68	field	items
+stack.zig	69	field	len
+stack.zig	71	method	init
+stack.zig	75	method	push
+stack.zig	81	method	pop
+stack.zig	89	function	main
+stack.zig	97	function	helper
+stack.zig	102	function	fast
+stack.zig	106	function	shift
+stack.zig	110	function	exported
+stack.zig	114	function	c_call
+stack.zig	116	function	comptimeSize
+stack.zig	120	function	Wrapper
+stack.zig	121	field	value
+stack.zig	128	function	test "stack push and pop"
+build.zig	2	type_alias	Build
+build.zig	4	class	Handle
+build.zig	5	type_alias	Callback
+build.zig	6	class	Version
+build.zig	7	field	major
+build.zig	8	field	minor
+build.zig	10	constant	current
+build.zig	12	class	Parsed
+build.zig	13	field	raw
+build.zig	16	method	format
+build.zig	21	function	puts
+build.zig	22	function	zig_entry
+build.zig	24	function	build
+build.zig	40	function	addAll
+build.zig	43	function	run
+build.zig	51	constant	@"odd name"
+build.zig	52	variable	global_flag
+build.zig	53	variable	buffer
+build.zig	55	class	Limits
+build.zig	56	variable	override
+build.zig	57	constant	hard
+build.zig	60	function	test "version format"
+Store.zig	5	field	allocator
+Store.zig	6	field	items
+Store.zig	7	field	mutex
+Store.zig	9	field	resets
+Store.zig	10	field	callback
+Store.zig	12	class	Error
+Store.zig	14	class	Entry
+Store.zig	15	field	key
+Store.zig	16	field	value
+Store.zig	19	function	init
+Store.zig	23	function	add
+Store.zig	28	function	reset
+Store.zig	33	function	test "add one"

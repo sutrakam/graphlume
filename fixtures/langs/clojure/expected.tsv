@@ -1,0 +1,57 @@
+# Clojure. A definition is a defining form at the top level of the file, or directly inside a
+# top-level reader conditional #?( ... ).
+#   ns -> package; defn, defn-, defmacro, defmulti -> function; def, defonce -> variable;
+#   defmethod -> method (named by the multimethod; the dispatch value is not part of the name);
+#   defprotocol, definterface -> interface, each method signature inside -> method;
+#   defrecord, deftype -> class.
+# A form that opens with its own metadata (^:cljs (def x)) counts like any other.
+# Not definitions: a def inside a defn, let or (comment ...), declare, deftest, protocol implementations inside
+# defrecord, deftype, extend-protocol and reify, calls such as println.
+core.clj	1	package	demo.core
+core.clj	5	variable	answer
+core.clj	7	variable	hidden
+core.clj	9	variable	documented
+core.clj	11	variable	registry
+core.clj	13	function	greet
+core.clj	18	function	helper
+core.clj	20	function	meta-fn
+core.clj	22	function	typed-fn
+core.clj	29	function	multi-arity
+core.clj	33	function	unless
+core.clj	36	function	area
+core.clj	38	function	describe
+core.clj	40	method	area
+core.clj	43	method	area
+core.clj	45	interface	Shape
+core.clj	47	method	perimeter
+core.clj	48	method	scale
+core.clj	50	method	describe-shape
+core.clj	52	interface	Streamable
+core.clj	53	method	write-body
+core.clj	55	class	Circle
+core.clj	60	class	Point
+core.clj	64	interface	Marker
+core.clj	65	method	mark
+core.clj	67	function	clj-only
+core.clj	68	function	cljs-only
+core.clj	82	variable	platform-name
+core.clj	84	function	jvm-only
+core.clj	91	interface	Store
+core.clj	91	method	load-all
+core.clj	91	method	save-all
+store.cljc	1	package	demo.store
+store.cljc	5	function	now
+store.cljc	8	function	now
+store.cljc	10	variable	state
+store.cljc	12	function	with-state
+store.cljc	17	function	old-name
+store.cljc	19	function	save!
+store.cljc	25	variable	max-items
+store.cljc	27	function	render
+store.cljc	29	method	render
+store.cljc	32	method	render
+store.cljc	34	interface	Persistent
+store.cljc	35	method	flush!
+store.cljc	36	method	reload!
+store.cljc	38	class	FileStore
+store.cljc	43	variable	handlers

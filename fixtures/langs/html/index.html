@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="app.css">
+  <style>
+    #inline-style-id { color: red; }
+  </style>
+</head>
+<body class="page" data-id="not-an-id">
+  <header id="site-header" class="top">
+    <nav id='main-nav'>
+      <a href="#content" class="skip" name="anchor-name">Skip</a>
+      <a id=unquoted-link href="/">Home</a>
+    </nav>
+  </header>
+
+  <main id="content">
+    <section class="card" id="stats-panel">
+      <h1 id="title">Stats</h1>
+      <input type="text" id="search-box" name="q" placeholder="search">
+      <button id="save-btn" type="button" onclick="save()">Save</button>
+      <label for="search-box">Search</label>
+      <img id="logo" src="logo.png" alt="">
+      <br id="spacer">
+    </section>
+
+    <my-widget id="custom-el" size="large"></my-widget>
+    <user-card name="ada"></user-card>
+
+    <ul>
+      <li id="item-1">One</li>
+      <li class="item" id="item-2">Two</li>
+      <li class="item">Three</li>
+    </ul>
+
+    <div id="">empty id value</div>
+    <div ID="upper-case-attr">attribute names are case-insensitive</div>
+    <p id="a b">id with a space</p>
+  </main>
+
+  <!-- <div id="commented-out"></div> -->
+
+  <script>
+    const el = document.getElementById("from-script");
+    document.write('<div id="written-by-script"></div>');
+  </script>
+  <script src="app.js" id="app-script"></script>
+</body>
+</html>

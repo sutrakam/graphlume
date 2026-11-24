@@ -1,0 +1,20 @@
+<div class="app"
+     data-role="shell"
+     id="app-shell">
+  <svg id="icon-sprite" width="0" height="0"><use href="#a"/></svg>
+  <img id="avatar" src="a.png" />
+  <input id="email-field"
+         type="email"
+         required />
+  <div id="{{ item.id }}">templated with spaces</div>
+  <div id="{{itemId}}">templated without spaces</div>
+  <div id="item-<%= n %>">erb</div>
+  <div id="${dynamic}">js template</div>
+  <div id="@Model.Id">razor</div>
+  <button
+      type="submit"
+      id="submit-order">Order</button>
+  <span ID=shout>x</span>
+  <p class="id" title="id">the words id as values are not attributes</p>
+  <my-element name="x" idx="3"></my-element>
+</div>

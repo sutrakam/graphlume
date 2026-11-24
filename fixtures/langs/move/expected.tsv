@@ -1,0 +1,55 @@
+# Move. Rule: module is package; struct and enum are class; const is constant;
+# every fun is function, whatever its visibility or modifier (public,
+# public(friend), public(package), entry, native, #[test], and the ones in a
+# script). `spec fun` is function. A `spec name { }` block conditions a function
+# declared elsewhere and is not a definition; struct fields, locals, use
+# declarations and calls are not either. The name of `module 0x42::ledger` is
+# `ledger`. A function with attributes (#[view]) starts on the attribute line.
+# label.move is the Move 2024 `module a::b;` form, read from ERROR nodes.
+ledger.move	3	package	ledger
+ledger.move	7	constant	E_NOT_FOUND
+ledger.move	8	constant	MAX_ENTRIES
+ledger.move	10	class	Entry
+ledger.move	15	class	Ledger
+ledger.move	20	class	Marker
+ledger.move	22	class	Receipt
+ledger.move	26	function	helper
+ledger.move	31	function	create_entry
+ledger.move	35	function	friend_only
+ledger.move	39	function	record
+ledger.move	46	function	init_entry
+ledger.move	50	function	hash_bytes
+ledger.move	52	function	native_public
+ledger.move	54	function	total
+ledger.move	59	function	test_helper
+ledger.move	68	function	spec_double
+ledger.move	73	package	registry
+ledger.move	76	constant	VERSION
+ledger.move	78	class	Registry
+ledger.move	82	function	version
+ledger.move	86	function	add
+ledger.move	93	function	main
+modern.move	2	package	market
+modern.move	5	constant	EEmpty
+modern.move	7	class	Status
+modern.move	12	class	Listing
+modern.move	17	class	Wrapper
+modern.move	19	function	open
+modern.move	23	function	internal_price
+modern.move	27	function	buy
+modern.move	32	function	status_code
+label.move	3	package	frames
+label.move	8	constant	EFrameFull
+label.move	9	constant	MaxFrames
+label.move	11	class	Frame
+label.move	16	class	Slot
+label.move	18	class	Gallery
+label.move	23	function	new_frame
+label.move	27	function	frame_count
+label.move	31	function	check_room
+label.move	35	function	publish
+ledger.move	99	package	Legacy
+ledger.move	100	class	Cell
+ledger.move	102	function	make
+ledger.move	107	package	Plain
+ledger.move	108	constant	LIMIT

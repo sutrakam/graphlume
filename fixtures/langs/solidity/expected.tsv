@@ -1,0 +1,50 @@
+# Rule: contract (abstract too), library, struct and enum are a class, at file
+# level or inside a contract; interface is an interface; a function (free or
+# in a contract, interface or library), an event and a custom error are a
+# function; a modifier, constructor, receive and fallback are a method; a
+# `type X is T;` is a type_alias; a constant or immutable (file level or state)
+# is a constant; any other state variable is a field. Struct members, enum
+# values, parameters, locals and `using` are not definitions.
+Token.sol	6	type_alias	Price
+Token.sol	7	type_alias	Id
+Token.sol	9	function	Unauthorized
+Token.sol	10	function	TooLate
+Token.sol	12	function	Registered
+Token.sol	14	constant	MAX_SUPPLY
+Token.sol	15	constant	ZERO
+Token.sol	17	class	Status
+Token.sol	19	class	Account
+Token.sol	24	function	freeAdd
+Token.sol	28	function	freeSub
+Token.sol	33	class	MathLib
+Token.sol	34	constant	SCALE
+Token.sol	36	function	mulScaled
+Token.sol	41	interface	IVault
+Token.sol	42	function	Deposited
+Token.sol	43	function	VaultClosed
+Token.sol	45	function	deposit
+Token.sol	47	function	balanceOf
+Token.sol	50	class	Base
+Token.sol	51	function	name
+Token.sol	54	class	Token
+Token.sol	57	constant	ADMIN_ROLE
+Token.sol	58	constant	DECIMALS
+Token.sol	59	constant	owner
+Token.sol	60	field	totalSupply
+Token.sol	61	field	balances
+Token.sol	62	field	_name
+Token.sol	63	field	status
+Token.sol	65	class	Checkpoint
+Token.sol	70	class	Mode
+Token.sol	72	function	Transfer
+Token.sol	73	function	InsufficientBalance
+Token.sol	75	method	onlyOwner
+Token.sol	80	method	whenActive
+Token.sol	85	method	constructor
+Token.sol	89	method	receive
+Token.sol	91	method	fallback
+Token.sol	93	function	name
+Token.sol	97	function	transfer
+Token.sol	104	function	deposit
+Token.sol	109	function	balanceOf
+Token.sol	113	function	_burn

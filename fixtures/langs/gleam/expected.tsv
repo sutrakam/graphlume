@@ -1,0 +1,19 @@
+# Gleam: functions (public, private, @external), constants, custom types
+# (class) and type aliases. Constructors of a custom type are not listed.
+sample.gleam	4	constant	max_items
+sample.gleam	5	constant	secret
+sample.gleam	7	class	Shape
+sample.gleam	12	class	Color
+sample.gleam	17	class	Stack
+sample.gleam	21	type_alias	Name
+sample.gleam	24	type_alias	Pair
+sample.gleam	27	function	area
+sample.gleam	34	function	helper
+sample.gleam	40	function	describe
+sample.gleam	49	function	reverse
+sample.gleam	52	function	now
+sample.gleam	54	function	main
+sample.gleam	60	function	map_pair
+sample.gleam	65	constant	names
+sample.gleam	68	class	Pid
+sample.gleam	70	function	with_use

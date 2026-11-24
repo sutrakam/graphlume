@@ -1,0 +1,17 @@
+# Rule: an entry of a ROOT-level "$defs" or "definitions" object (JSON Schema,
+# Swagger 2.0), or of the root "components"."schemas" object (OpenAPI 3), is a
+# type_alias named by its key. Not definitions: every other key, at any depth;
+# "$defs" / "definitions" / "components" that are not direct members of the root
+# object; "properties" entries; operation ids; parameters and responses of an
+# OpenAPI document. Narrow because JSON keys are values of the data, repeated
+# in every file (name, version, type); only schema names are declared once and
+# referred to by name ("$ref": "#/$defs/Customer").
+order.schema.json	19	type_alias	Customer
+order.schema.json	26	type_alias	OrderLine
+order.schema.json	34	type_alias	Address
+order.schema.json	40	type_alias	Currency
+order.schema.json	41	type_alias	Flag
+order.schema.json	44	type_alias	LegacyThing
+openapi.json	23	type_alias	Pet
+openapi.json	27	type_alias	PetList
+openapi.json	28	type_alias	Error

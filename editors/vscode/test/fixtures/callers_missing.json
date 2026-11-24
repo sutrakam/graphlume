@@ -1,0 +1,20 @@
+{
+  "is_error": false,
+  "result": {
+    "index_revision": 1,
+    "index_status": "ready",
+    "notes": [
+      "The index has no definition under that exact name. Try search for a partial match, check the spelling, or confirm the file is indexed — generated, oversized and excluded files are not. Absence here is not proof the symbol does not exist."
+    ],
+    "provenance": {
+      "age_seconds": 925,
+      "built_at_sha": "6fadd51b76b45129669a667d0a93a45050be12ae",
+      "caveat": "This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.",
+      "head_matches_build": true,
+      "head_sha": "6fadd51b76b45129669a667d0a93a45050be12ae"
+    },
+    "summary": "No symbol named \"NoSuchSymbolAnywhere\" in the index."
+  },
+  "text": "=== SYSTEM METADATA ===\nNo symbol named \"NoSuchSymbolAnywhere\" in the index.\nindex_revision: 1  status: ready\nnote: The index has no definition under that exact name. Try search for a partial match, check the spelling, or confirm the file is indexed — generated, oversized and excluded files are not. Absence here is not proof the symbol does not exist.\nprovenance: This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.\n",
+  "tool": "callers"
+}

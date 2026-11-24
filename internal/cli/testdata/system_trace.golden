@@ -1,0 +1,143 @@
+=== callers lib:Do
+lib:Do (function) at lib.go:4
+
+MEMBER  CALLER    EVIDENCE    CONFIDENCE  LEG
+lib     Wrap      wrap.go:4   exact       local (compiler)
+app     run       main.go:12  high        go-module lib.Do
+app     viaAlias  other.go:7  high        go-module l2.Do
+web     Fetch     web.go:8    high        go-module lib.Do
+
+4 caller(s).
+! web requires example.com/lib v1.4.2; lib's index records no commit (go.mod
+  has no version), so whether the indexed code is that version cannot be
+  checked
+
+~ This is a LOWER BOUND. A caller the index did not resolve, a method call
+  whose receiver type could not be read (counted by reason above), and any
+  repository outside the estate are all absent, so an empty answer is "nothing
+  found", never "nothing breaks".
+~ Rows marked go-module cross a repository boundary on a Go import and are
+  never `exact`: no compiler checked the two repositories together. Rows
+  marked local carry the member's own recorded confidence.
+=== callers lib:Client.Send
+lib:Client.Send (method) at lib.go:10
+
+MEMBER  CALLER    EVIDENCE      CONFIDENCE  LEG
+app     run       main.go:10    medium      go-module c.Send
+app     methods   methods.go:7  medium      go-module lib.Typed.Send
+app     viaAlias  other.go:6    high        go-module (l2.Client).Send
+
+3 caller(s).
+
+~ This is a LOWER BOUND. A caller the index did not resolve, a method call
+  whose receiver type could not be read (counted by reason above), and any
+  repository outside the estate are all absent, so an empty answer is "nothing
+  found", never "nothing breaks".
+~ Rows marked go-module cross a repository boundary on a Go import and are
+  never `exact`: no compiler checked the two repositories together. Rows
+  marked local carry the member's own recorded confidence.
+=== callers lib:Platform (ambiguous)
+AMBIGUOUS — 2 definitions share the name "Platform" in lib. What follows is about the first, do_darwin.go:5, and says nothing about the others. Pass --path to choose one; they are listed at the end.
+
+lib:Platform (function) at do_darwin.go:5
+
+MEMBER  CALLER  EVIDENCE    CONFIDENCE  LEG
+app     run     main.go:11  medium      go-module lib.Platform
+
+1 caller(s).
+
+~ This is a LOWER BOUND. A caller the index did not resolve, a method call
+  whose receiver type could not be read (counted by reason above), and any
+  repository outside the estate are all absent, so an empty answer is "nothing
+  found", never "nothing breaks".
+~ Rows marked go-module cross a repository boundary on a Go import and are
+  never `exact`: no compiler checked the two repositories together. Rows
+  marked local carry the member's own recorded confidence.
+
+2 definitions share the name "Platform"; this answered for the first.
+Pass --path to choose another:
+  do_darwin.go:5 (function)
+  do_linux.go:5 (function)
+=== impact lib:Do
+lib:Do (function) at lib.go:4
+depth 3, confidence floor medium, members reached: lib, app, web
+
+DEPTH  MEMBER  SYMBOL    EVIDENCE    CONFIDENCE  VIA        REACHES
+1      app     run       main.go:12  high        go-module  lib:Do
+1      app     viaAlias  other.go:7  high        go-module  lib:Do
+1      lib     Wrap      wrap.go:4   exact       CALLS      lib:Do
+1      web     Fetch     web.go:8    high        go-module  lib:Do
+2      app     handler   main.go:15  high        CALLS      app:run
+3      app     main      main.go:17  high        CALLS      app:handler
+
+6 dependent(s) across 3 member(s).
+! Truncated: the walk stopped at depth 3, so what depends on the symbols at
+  that depth, if anything, is not listed (raise --depth).
+! web requires example.com/lib v1.4.2; lib's index records no commit (go.mod
+  has no version), so whether the indexed code is that version cannot be
+  checked
+
+~ This is a LOWER BOUND. A caller the index did not resolve, a method call
+  whose receiver type could not be read (counted by reason above), and any
+  repository outside the estate are all absent, so an empty answer is "nothing
+  found", never "nothing breaks".
+~ Rows marked go-module cross a repository boundary on a Go import and are
+  never `exact`: no compiler checked the two repositories together. Rows
+  marked local carry the member's own recorded confidence.
+=== impact lib:Do depth 1 limit 2
+lib:Do (function) at lib.go:4
+depth 1, confidence floor medium, members reached: lib, app
+
+DEPTH  MEMBER  SYMBOL    EVIDENCE    CONFIDENCE  VIA        REACHES
+1      app     run       main.go:12  high        go-module  lib:Do
+1      app     viaAlias  other.go:7  high        go-module  lib:Do
+
+2 dependent(s) across 2 member(s).
+! Truncated: the walk stopped at 2 dependents (--limit); raise it to see the
+  rest.
+! web requires example.com/lib v1.4.2; lib's index records no commit (go.mod
+  has no version), so whether the indexed code is that version cannot be
+  checked
+
+~ This is a LOWER BOUND. A caller the index did not resolve, a method call
+  whose receiver type could not be read (counted by reason above), and any
+  repository outside the estate are all absent, so an empty answer is "nothing
+  found", never "nothing breaks".
+~ Rows marked go-module cross a repository boundary on a Go import and are
+  never `exact`: no compiler checked the two repositories together. Rows
+  marked local carry the member's own recorded confidence.
+=== impact lib:Platform --path do_linux
+lib:Platform (function) at do_linux.go:5
+depth 3, confidence floor medium, members reached: lib, app
+
+DEPTH  MEMBER  SYMBOL   EVIDENCE    CONFIDENCE  VIA        REACHES
+1      app     run      main.go:11  medium      go-module  lib:Platform
+2      app     handler  main.go:15  medium      CALLS      app:run
+3      app     main     main.go:17  medium      CALLS      app:handler
+
+3 dependent(s) across 2 member(s).
+! Truncated: the walk stopped at depth 3, so what depends on the symbols at
+  that depth, if anything, is not listed (raise --depth).
+
+~ This is a LOWER BOUND. A caller the index did not resolve, a method call
+  whose receiver type could not be read (counted by reason above), and any
+  repository outside the estate are all absent, so an empty answer is "nothing
+  found", never "nothing breaks".
+~ Rows marked go-module cross a repository boundary on a Go import and are
+  never `exact`: no compiler checked the two repositories together. Rows
+  marked local carry the member's own recorded confidence.
+=== error: unknown member
+--- error
+no member is named "nobody"; the members are app, lib, web
+=== error: no member prefix
+--- error
+"Do" is not <member>:<symbol> (for example: lib:Do)
+=== error: no such symbol
+--- error
+no symbol named "Nope" in lib; names must match exactly
+=== error: path matches nothing
+--- error
+no symbol named "Platform" in a file of lib matching "zzz"; 2 definition(s) exist elsewhere
+=== error: bad floor
+--- error
+--min-confidence "sure": want exact, high, medium or low

@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.28.0.schema.json
+
+PackageIdentifier: Sutrakam.GraphLume
+PackageVersion: 1.0.0
+InstallerType: zip
+NestedInstallerType: portable
+NestedInstallerFiles:
+- RelativeFilePath: graphlume.exe
+  PortableCommandAlias: graphlume
+Commands:
+- graphlume
+ReleaseDate: 2026-11-12
+Installers:
+- Architecture: x64
+  InstallerUrl: https://github.com/sutrakam/graphlume/releases/download/v1.0.0/graphlume_v1.0.0_windows_amd64.zip
+  InstallerSha256: BFD552D188D91AABEB862D587BEE1F0D472846443254368466BCAD4BFAB24DA9
+ManifestType: installer
+ManifestVersion: 1.28.0

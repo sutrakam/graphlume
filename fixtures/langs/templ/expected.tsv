@@ -1,0 +1,48 @@
+# templ. Rule: the top-level declarations of the file. A templ component is
+# function (method when it has a receiver); css and script components are
+# function. The Go declarations in the file follow Go's own fixture: func is
+# function, a method is method, struct and defined types are class, interface is
+# interface and each method it declares is method, `type A = B` is type_alias,
+# package-level const and var are constant and variable (each name of a
+# `const a, b = ...` is one). Not definitions: struct fields, locals (including
+# const, type and var inside a function body and `{{ x := ... }}` in a component),
+# imports, the package clause, and calls such as @header(title).
+page.templ	8	constant	defaultTitle
+page.templ	10	variable	pageCount
+page.templ	12	class	Item
+page.templ	17	interface	Renderer
+page.templ	18	method	Render
+page.templ	21	class	Money
+page.templ	23	function	formatPrice
+page.templ	28	method	Label
+page.templ	32	function	highlight
+page.templ	37	function	card
+page.templ	42	function	confirmDelete
+page.templ	48	function	initPage
+page.templ	52	function	header
+page.templ	58	function	footer
+page.templ	64	function	itemRow
+page.templ	74	function	ItemTable
+page.templ	82	function	Layout
+page.templ	91	method	Method
+page.templ	95	function	Page
+decls.templ	6	constant	ModeLight
+decls.templ	7	constant	ModeDark
+decls.templ	8	constant	ModeAuto
+decls.templ	11	constant	maxRows
+decls.templ	11	constant	minRows
+decls.templ	14	variable	registry
+decls.templ	15	variable	lastError
+decls.templ	19	class	Handler
+decls.templ	20	class	Config
+decls.templ	24	interface	Source
+decls.templ	25	method	Fetch
+decls.templ	26	method	Close
+decls.templ	30	type_alias	Names
+decls.templ	32	class	Pair
+decls.templ	37	function	Map
+decls.templ	45	method	Swap
+decls.templ	52	function	init
+decls.templ	56	function	List
+decls.templ	64	function	Empty
+decls.templ	68	function	Badge

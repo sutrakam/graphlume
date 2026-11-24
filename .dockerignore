@@ -1,0 +1,28 @@
+# Keeps the build context to what `go build ./cmd/graphlume` reads, plus the
+# licence files the image carries. Nothing here is needed to compile.
+.git
+.github
+.claude
+.graphlume
+dist
+bin
+docs
+fixtures
+tests
+packaging
+script
+scripts
+**/node_modules
+**/*_test.go
+**/testdata
+*.md
+!THIRD_PARTY.md
+llms.txt
+llms-full.txt
+install.sh
+install.ps1
+smithery.yaml
+server.json
+Dockerfile
+.dockerignore
+.env*

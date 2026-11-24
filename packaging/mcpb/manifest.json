@@ -1,0 +1,61 @@
+{
+  "manifest_version": "0.3",
+  "name": "graphlume",
+  "display_name": "GraphLume",
+  "version": "1.0.0",
+  "description": "Deterministic code intelligence and change safety for AI coding agents, served from a local code graph.",
+  "long_description": "GraphLume indexes a repository into a local SQLite code graph of symbols, references, APIs, database access, tests, configuration and Git history, and serves it to an AI agent over MCP. Every relationship carries a confidence level and the source location that justifies it.\n\nThis bundle runs `graphlume serve` over stdio against the repository you choose. The server does not build an index. If the repository has none, it still starts, and every tool answers with the commands that build one and the directory to run them in: `graphlume init`, `graphlume index` and `graphlume resolve`, from a terminal. It answers from the index as soon as it exists, without a restart.",
+  "author": {
+    "name": "Satyendra Singh",
+    "url": "https://github.com/sutrakam"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sutrakam/graphlume.git"
+  },
+  "homepage": "https://github.com/sutrakam/graphlume",
+  "documentation": "https://github.com/sutrakam/graphlume/tree/main/docs",
+  "support": "https://github.com/sutrakam/graphlume/issues",
+  "server": {
+    "type": "binary",
+    "entry_point": "server/graphlume",
+    "mcp_config": {
+      "command": "${__dirname}/server/graphlume",
+      "args": [
+        "--project",
+        "${user_config.repository}",
+        "serve"
+      ],
+      "env": {},
+      "platform_overrides": {
+        "win32": {
+          "command": "${__dirname}/server/graphlume.exe"
+        }
+      }
+    }
+  },
+  "tools_generated": true,
+  "keywords": [
+    "code-intelligence",
+    "code-graph",
+    "impact-analysis",
+    "static-analysis",
+    "mcp"
+  ],
+  "license": "Apache-2.0",
+  "compatibility": {
+    "platforms": [
+      "darwin",
+      "win32",
+      "linux"
+    ]
+  },
+  "user_config": {
+    "repository": {
+      "type": "directory",
+      "title": "Repository",
+      "description": "The root of the repository to serve. It must already be indexed with `graphlume init --index`.",
+      "required": true
+    }
+  }
+}

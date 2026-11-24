@@ -1,0 +1,481 @@
+{
+  "is_error": false,
+  "result": {
+    "index_revision": 1,
+    "index_status": "ready",
+    "items": [
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 100,
+        "name": "runAccuracy",
+        "path": "internal/cli/accuracy.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 250,
+        "name": "runAgentPrint",
+        "path": "internal/cli/agentsetup.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 285,
+        "name": "runAgentGuidance",
+        "path": "internal/cli/agentsetup.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 81,
+        "name": "newAPICmd",
+        "path": "internal/cli/apidb.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 186,
+        "name": "newDBCmd",
+        "path": "internal/cli/apidb.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 281,
+        "name": "newDBTableCmd",
+        "path": "internal/cli/apidb.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 303,
+        "name": "newDBTableCmd",
+        "path": "internal/cli/apidb.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 107,
+        "name": "runArch",
+        "path": "internal/cli/arch.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 133,
+        "name": "runArch",
+        "path": "internal/cli/arch.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 334,
+        "name": "newADRCmd",
+        "path": "internal/cli/arch.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 359,
+        "name": "newADRCmd",
+        "path": "internal/cli/arch.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 95,
+        "name": "newBenchCmd",
+        "path": "internal/cli/bench.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 90,
+        "name": "newInitCmd",
+        "path": "internal/cli/commands.go",
+        "source": "source_code",
+        "why": "defined in the same file"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 248,
+        "name": "renderStatus",
+        "path": "internal/cli/commands.go",
+        "source": "source_code",
+        "why": "defined in the same file"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 1161,
+        "name": "renderChecks",
+        "path": "internal/cli/commands.go",
+        "source": "source_code",
+        "why": "defined in the same file"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 58,
+        "name": "newConfigCmd",
+        "path": "internal/cli/configdeps.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 175,
+        "name": "newDepsCmd",
+        "path": "internal/cli/configdeps.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 129,
+        "name": "runDiff",
+        "path": "internal/cli/diff.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 52,
+        "name": "newDiffMinimizeCmd",
+        "path": "internal/cli/diffmini.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 99,
+        "name": "runDocs",
+        "path": "internal/cli/docs.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 156,
+        "name": "runImpactDiff",
+        "path": "internal/cli/impact_diff.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 178,
+        "name": "tryIncremental",
+        "path": "internal/cli/index.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 366,
+        "name": "renderIndexReport",
+        "path": "internal/cli/index.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 52,
+        "name": "newIndexersListCmd",
+        "path": "internal/cli/indexers.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 150,
+        "name": "newIndexersPinsCmd",
+        "path": "internal/cli/indexers.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 266,
+        "name": "newIndexersInstallCmd",
+        "path": "internal/cli/indexers.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 223,
+        "name": "renderInfra",
+        "path": "internal/cli/infra.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 562,
+        "name": "runInfraForPath",
+        "path": "internal/cli/infra.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 612,
+        "name": "runInfraForKey",
+        "path": "internal/cli/infra.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 48,
+        "name": "newLanguagesCmd",
+        "path": "internal/cli/languages.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 46,
+        "name": "newPruneCmd",
+        "path": "internal/cli/prune.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 336,
+        "name": "newSearchCmd",
+        "path": "internal/cli/query.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 398,
+        "name": "newSymbolCmd",
+        "path": "internal/cli/query.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 553,
+        "name": "newRelationshipCmd",
+        "path": "internal/cli/query.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 679,
+        "name": "newContextCmd",
+        "path": "internal/cli/query.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 271,
+        "name": "finishRename",
+        "path": "internal/cli/rename.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 112,
+        "name": "newResolveCmd",
+        "path": "internal/cli/resolve.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 230,
+        "name": "newVersionCmd",
+        "path": "internal/cli/root.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 91,
+        "name": "newTraceCmd",
+        "path": "internal/cli/runtime.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 199,
+        "name": "newCompileCmd",
+        "path": "internal/cli/runtime.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 158,
+        "name": "newSCIPImportCmd",
+        "path": "internal/cli/scip.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 80,
+        "name": "newServeCmd",
+        "path": "internal/cli/serve.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 155,
+        "name": "newQueryCmd",
+        "path": "internal/cli/sqlquery.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 92,
+        "name": "newDeadCodeCmd",
+        "path": "internal/cli/structure.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 255,
+        "name": "newHotspotsCmd",
+        "path": "internal/cli/structure.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 375,
+        "name": "newPathCmd",
+        "path": "internal/cli/structure.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 479,
+        "name": "newImplementationsCmd",
+        "path": "internal/cli/structure.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 574,
+        "name": "newTestsCmd",
+        "path": "internal/cli/structure.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 163,
+        "name": "runSystem",
+        "path": "internal/cli/system.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 112,
+        "name": "newToolListCmd",
+        "path": "internal/cli/tool.go",
+        "source": "source_code",
+        "why": "same package directory"
+      }
+    ],
+    "notes": [
+      "32615 references repository-wide are unresolved or ambiguous, so this list may be incomplete."
+    ],
+    "provenance": {
+      "age_seconds": 229,
+      "built_at_sha": "6fadd51b76b45129669a667d0a93a45050be12ae",
+      "caveat": "This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.",
+      "head_matches_build": true,
+      "head_sha": "6fadd51b76b45129669a667d0a93a45050be12ae"
+    },
+    "summary": "50 caller(s) of emitJSON (internal/cli/commands.go:28).",
+    "truncated": true,
+    "truncated_reason": "the item cap (50) was reached after filtering; more results may exist beyond it — narrow the query (a path, or a stricter min_confidence) for a complete answer",
+    "verdict": {
+      "counts": {
+        "high": 50
+      },
+      "next_step": "No result fell below high confidence. Act on these, but verify before deleting anything.",
+      "status": "strong"
+    }
+  },
+  "text": "=== SYSTEM METADATA ===\n50 caller(s) of emitJSON (internal/cli/commands.go:28).\nindex_revision: 1  status: ready\ntruncated: the item cap (50) was reached after filtering; more results may exist beyond it — narrow the query (a path, or a stricter min_confidence) for a complete answer\nnote: 32615 references repository-wide are unresolved or ambiguous, so this list may be incomplete.\nprovenance: This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.\nverdict: strong (high=50)\nnext_step: No result fell below high confidence. Act on these, but verify before deleting anything.\n\n=== INFERRED ===\n- calls runAccuracy  internal/cli/accuracy.go:100  [confidence=high source=source_code]  (same package directory)\n- calls runAgentPrint  internal/cli/agentsetup.go:250  [confidence=high source=source_code]  (same package directory)\n- calls runAgentGuidance  internal/cli/agentsetup.go:285  [confidence=high source=source_code]  (same package directory)\n- calls newAPICmd  internal/cli/apidb.go:81  [confidence=high source=source_code]  (same package directory)\n- calls newDBCmd  internal/cli/apidb.go:186  [confidence=high source=source_code]  (same package directory)\n- calls newDBTableCmd  internal/cli/apidb.go:281  [confidence=high source=source_code]  (same package directory)\n- calls newDBTableCmd  internal/cli/apidb.go:303  [confidence=high source=source_code]  (same package directory)\n- calls runArch  internal/cli/arch.go:107  [confidence=high source=source_code]  (same package directory)\n- calls runArch  internal/cli/arch.go:133  [confidence=high source=source_code]  (same package directory)\n- calls newADRCmd  internal/cli/arch.go:334  [confidence=high source=source_code]  (same package directory)\n- calls newADRCmd  internal/cli/arch.go:359  [confidence=high source=source_code]  (same package directory)\n- calls newBenchCmd  internal/cli/bench.go:95  [confidence=high source=source_code]  (same package directory)\n- calls newInitCmd  internal/cli/commands.go:90  [confidence=high source=source_code]  (defined in the same file)\n- calls renderStatus  internal/cli/commands.go:248  [confidence=high source=source_code]  (defined in the same file)\n- calls renderChecks  internal/cli/commands.go:1161  [confidence=high source=source_code]  (defined in the same file)\n- calls newConfigCmd  internal/cli/configdeps.go:58  [confidence=high source=source_code]  (same package directory)\n- calls newDepsCmd  internal/cli/configdeps.go:175  [confidence=high source=source_code]  (same package directory)\n- calls runDiff  internal/cli/diff.go:129  [confidence=high source=source_code]  (same package directory)\n- calls newDiffMinimizeCmd  internal/cli/diffmini.go:52  [confidence=high source=source_code]  (same package directory)\n- calls runDocs  internal/cli/docs.go:99  [confidence=high source=source_code]  (same package directory)\n- calls runImpactDiff  internal/cli/impact_diff.go:156  [confidence=high source=source_code]  (same package directory)\n- calls tryIncremental  internal/cli/index.go:178  [confidence=high source=source_code]  (same package directory)\n- calls renderIndexReport  internal/cli/index.go:366  [confidence=high source=source_code]  (same package directory)\n- calls newIndexersListCmd  internal/cli/indexers.go:52  [confidence=high source=source_code]  (same package directory)\n- calls newIndexersPinsCmd  internal/cli/indexers.go:150  [confidence=high source=source_code]  (same package directory)\n- calls newIndexersInstallCmd  internal/cli/indexers.go:266  [confidence=high source=source_code]  (same package directory)\n- calls renderInfra  internal/cli/infra.go:223  [confidence=high source=source_code]  (same package directory)\n- calls runInfraForPath  internal/cli/infra.go:562  [confidence=high source=source_code]  (same package directory)\n- calls runInfraForKey  internal/cli/infra.go:612  [confidence=high source=source_code]  (same package directory)\n- calls newLanguagesCmd  internal/cli/languages.go:48  [confidence=high source=source_code]  (same package directory)\n- calls newPruneCmd  internal/cli/prune.go:46  [confidence=high source=source_code]  (same package directory)\n- calls newSearchCmd  internal/cli/query.go:336  [confidence=high source=source_code]  (same package directory)\n- calls newSymbolCmd  internal/cli/query.go:398  [confidence=high source=source_code]  (same package directory)\n- calls newRelationshipCmd  internal/cli/query.go:553  [confidence=high source=source_code]  (same package directory)\n- calls newContextCmd  internal/cli/query.go:679  [confidence=high source=source_code]  (same package directory)\n- calls finishRename  internal/cli/rename.go:271  [confidence=high source=source_code]  (same package directory)\n- calls newResolveCmd  internal/cli/resolve.go:112  [confidence=high source=source_code]  (same package directory)\n- calls newVersionCmd  internal/cli/root.go:230  [confidence=high source=source_code]  (same package directory)\n- calls newTraceCmd  internal/cli/runtime.go:91  [confidence=high source=source_code]  (same package directory)\n- calls newCompileCmd  internal/cli/runtime.go:199  [confidence=high source=source_code]  (same package directory)\n- calls newSCIPImportCmd  internal/cli/scip.go:158  [confidence=high source=source_code]  (same package directory)\n- calls newServeCmd  internal/cli/serve.go:80  [confidence=high source=source_code]  (same package directory)\n- calls newQueryCmd  internal/cli/sqlquery.go:155  [confidence=high source=source_code]  (same package directory)\n- calls newDeadCodeCmd  internal/cli/structure.go:92  [confidence=high source=source_code]  (same package directory)\n- calls newHotspotsCmd  internal/cli/structure.go:255  [confidence=high source=source_code]  (same package directory)\n- calls newPathCmd  internal/cli/structure.go:375  [confidence=high source=source_code]  (same package directory)\n- calls newImplementationsCmd  internal/cli/structure.go:479  [confidence=high source=source_code]  (same package directory)\n- calls newTestsCmd  internal/cli/structure.go:574  [confidence=high source=source_code]  (same package directory)\n- calls runSystem  internal/cli/system.go:163  [confidence=high source=source_code]  (same package directory)\n- calls newToolListCmd  internal/cli/tool.go:112  [confidence=high source=source_code]  (same package directory)\n",
+  "tool": "callers"
+}

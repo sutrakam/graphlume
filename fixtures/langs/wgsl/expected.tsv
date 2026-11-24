@@ -1,0 +1,33 @@
+# WGSL. Rule: every module-scope declaration is a definition. fn is function,
+# struct is class, alias is type_alias, const/let/override are constant, and a
+# module-scope var (uniform, storage, private, workgroup, handle) is variable.
+# Struct members, parameters, function-local const/let/var, enable and requires
+# directives are not definitions. A function is on its fn line, the attributes
+# above it are not part of the line.
+shader.wgsl	6	type_alias	Vec3
+shader.wgsl	7	type_alias	Index
+shader.wgsl	9	constant	PI
+shader.wgsl	10	constant	WORKGROUP_SIZE
+shader.wgsl	11	constant	origin
+shader.wgsl	13	constant	blockSize
+shader.wgsl	14	constant	scale
+shader.wgsl	16	class	Camera
+shader.wgsl	22	class	Particle
+shader.wgsl	28	class	VertexOutput
+shader.wgsl	33	variable	camera
+shader.wgsl	34	variable	particlesIn
+shader.wgsl	35	variable	particlesOut
+shader.wgsl	36	variable	albedoSampler
+shader.wgsl	37	variable	albedoTexture
+shader.wgsl	39	variable	frameCounter
+shader.wgsl	40	variable	tile
+shader.wgsl	41	variable	sharedSum
+shader.wgsl	43	function	square
+shader.wgsl	47	function	lerp3
+shader.wgsl	54	function	rotate
+shader.wgsl	61	function	vs_main
+shader.wgsl	69	function	fs_main
+shader.wgsl	74	function	simulate
+shader.wgsl	83	function	reduce
+shader.wgsl	88	function	classify
+shader.wgsl	106	function	tail_helper

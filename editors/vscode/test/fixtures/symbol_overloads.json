@@ -1,0 +1,45 @@
+{
+  "is_error": false,
+  "result": {
+    "index_revision": 1,
+    "index_status": "ready",
+    "items": [
+      {
+        "confidence": "high",
+        "fqn": "java/src/main/java/com/shop/Parser.java:parse",
+        "kind": "method",
+        "line": 4,
+        "name": "parse",
+        "path": "java/src/main/java/com/shop/Parser.java",
+        "source": "source_code"
+      },
+      {
+        "confidence": "high",
+        "fqn": "java/src/main/java/com/shop/Parser.java:parse",
+        "kind": "method",
+        "line": 8,
+        "name": "parse",
+        "path": "java/src/main/java/com/shop/Parser.java",
+        "source": "source_code"
+      }
+    ],
+    "provenance": {
+      "age_seconds": 304,
+      "caveat": "HEAD could not be determined, so index freshness is unknown. This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.",
+      "head_matches_build": false
+    },
+    "summary": "2 definition(s) named \"parse\".",
+    "verdict": {
+      "counts": {
+        "high": 2
+      },
+      "next_step": "No result fell below high confidence against the indexed revision. Reindex before acting if the working tree has moved.",
+      "signals": [
+        "the index does not match HEAD; these tiers describe the indexed revision, not your working tree"
+      ],
+      "status": "strong"
+    }
+  },
+  "text": "=== SYSTEM METADATA ===\n2 definition(s) named \"parse\".\nindex_revision: 1  status: ready\nprovenance: HEAD could not be determined, so index freshness is unknown. This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.\nverdict: strong (high=2)\nverdict_signal: the index does not match HEAD; these tiers describe the indexed revision, not your working tree\nnext_step: No result fell below high confidence against the indexed revision. Reindex before acting if the working tree has moved.\n\n=== INFERRED ===\n- method parse  java/src/main/java/com/shop/Parser.java:4  [confidence=high source=source_code]\n- method parse  java/src/main/java/com/shop/Parser.java:8  [confidence=high source=source_code]\n",
+  "tool": "symbol"
+}

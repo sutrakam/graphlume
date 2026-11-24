@@ -1,0 +1,24 @@
+# Puppet: a definition is
+#   class NAME, define NAME (a defined type), node 'host' / node default -> class
+#   function NAME -> function          type NAME = ... -> type_alias
+# A node with several quoted names lists each name. Not definitions: resource
+# declarations (package { 'x': }, class { 'x': }), include statements, variables,
+# parameters, resource collectors.
+# Known gaps (KNOWN_GAPS.md): plan, and node /regex/.
+init.pp	2	class	webserver
+init.pp	30	class	webserver::firewall
+init.pp	36	class	webserver::vhost
+init.pp	47	class	web01.example.com
+init.pp	54	class	default
+init.pp	58	function	webserver::port_for
+init.pp	63	type_alias	Webserver::Port
+init.pp	65	type_alias	Webserver::Env
+site.pp	8	class	app01.example.com
+site.pp	8	class	app02.example.com
+site.pp	15	class	profile::database
+site.pp	21	class	profile::app
+site.pp	25	class	profile::user_account
+site.pp	31	function	profile::dns_servers
+site.pp	35	type_alias	Profile::Mode
+site.pp	37	type_alias	Profile::Tag
+site.pp	39	class	profile::monitoring

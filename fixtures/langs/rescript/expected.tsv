@@ -1,0 +1,34 @@
+# ReScript: top-level and module-body lets (function when the value is a function
+# or the signature is a function type, else variable), types (variant and record
+# are class, an alias of another type is type_alias, an abstract type is class),
+# modules and module types (package), externals (function), exceptions (class).
+# Local lets, variant constructors and record fields are not listed.
+Sample.res	3	variable	maxItems
+Sample.res	5	variable	greeting
+Sample.res	7	function	add
+Sample.res	9	function	fact
+Sample.res	16	function	area
+Sample.res	24	class	color
+Sample.res	26	class	shape
+Sample.res	30	class	point
+Sample.res	32	type_alias	id
+Sample.res	34	type_alias	pair
+Sample.res	36	class	tree
+Sample.res	39	function	readFileSync
+Sample.res	41	function	now
+Sample.res	43	package	Stack
+Sample.res	44	type_alias	t
+Sample.res	46	variable	empty
+Sample.res	48	function	push
+Sample.res	50	package	Inner
+Sample.res	51	variable	depth
+Sample.res	55	package	Printer
+Sample.res	56	class	t
+Sample.res	57	function	print
+Sample.res	60	package	Console
+Sample.res	61	type_alias	t
+Sample.res	62	function	print
+Sample.res	65	package	Short
+Sample.res	67	class	NotFound
+Sample.res	69	function	main
+Sample.res	78	variable	default
