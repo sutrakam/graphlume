@@ -1,6 +1,6 @@
 {
   "name": "mixed",
   "dependencies": {
-    "effect": "1.0.0"
+    "effect": "3.22.1"
   }
 }
