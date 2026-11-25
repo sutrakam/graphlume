@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/sutrakam/graphlume/internal/config"
 	"github.com/sutrakam/graphlume/internal/pipeline"
@@ -296,5 +297,27 @@ func TestSetupFailureInEveryDirectoryIsReportedOnce(t *testing.T) {
 	}
 	if strings.Contains(out.String(), "could not be prepared") {
 		t.Errorf("the failure is summarised here and again by the caller:\n%s", out.String())
+	}
+}
+
+// TestALongStepKeepsSayingItIsRunning: installing scip-python printed nothing
+// for 58 seconds, which a person reads as a hang.
+func TestALongStepKeepsSayingItIsRunning(t *testing.T) {
+	prev := heartbeatEvery
+	heartbeatEvery = 20 * time.Millisecond
+	t.Cleanup(func() { heartbeatEvery = prev })
+	var out lockedBuffer
+	s := &guidedSetup{ctx: context.Background(), out: &out}
+	stop := s.heartbeat("still installing scip-python")
+	time.Sleep(110 * time.Millisecond)
+	stop()
+	n := strings.Count(out.String(), "still installing scip-python")
+	if n < 2 {
+		t.Errorf("a long step printed %d heartbeat(s) in 110ms at a 20ms interval:\n%s", n, out.String())
+	}
+	after := out.String()
+	time.Sleep(60 * time.Millisecond)
+	if out.String() != after {
+		t.Error("the heartbeat kept printing after the step finished")
 	}
 }

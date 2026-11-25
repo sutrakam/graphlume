@@ -645,6 +645,13 @@ func (imp *Importer) run(ctx context.Context, mode runMode) (ImportResult, error
 			"file(s) of this repository it covers, and none of them is a symbol GraphLume indexes "+
 			"(they are locals, constants or re-exports)", res.SymbolsUnmatched, st.DocumentsMatched)
 	}
+	if res.SymbolsMatched == 0 && st.Documents == 0 {
+		// An empty index is the indexer failing to load the project, most
+		// often because its dependencies are not installed; blaming another
+		// commit sent people looking in the wrong place.
+		return res, fmt.Errorf("%s: the index is empty (0 definitions): the indexer could not "+
+			"load the project. Install its dependencies (for example npm install in that directory) and resolve again", mode.label)
+	}
 	if res.SymbolsMatched == 0 {
 		return res, fmt.Errorf(mode.label+": none of the index's %d definition(s) matched a symbol "+
 			"in this repository — the index was probably built from a different commit or with "+

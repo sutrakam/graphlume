@@ -359,6 +359,16 @@ def main():
         if want("C2"):
             r2 = run_tty(gl, d, ["init", "--all"], e.env, answer="n")
             record("C2", len(r2.questions()) == 0, f"second run asked {len(r2.questions())}: {[q.strip()[:60] for q in r2.questions()]}")
+    if want("C6"):
+        # Answering yes, the default: the indexers are downloaded and
+        # installed, which takes a minute and must never run silent.
+        e = Env(work, "c6", fresh_machine=True)
+        d = monorepo(work, "c6")
+        r = run_tty(gl, d, ["init", "--all"], e.env, answer="y", timeout=900)
+        ok = common_checks("C6", r)
+        installed = len(re.findall(r"Installed scip-", r.text))
+        record("C6", r.code == 0 and ok and installed >= 2,
+               f"exit {r.code}; {installed} indexer(s) installed; longest silence {r.longest_silence():.0f}s")
     if want("C3"):
         e = Env(work, "c3", fresh_machine=True)
         d = monorepo(work, "c3")
@@ -499,6 +509,35 @@ def main():
 
     # ---------------------------------------------------------------- P
     print("P. Platforms")
+    image = os.environ.get("GRAPHLUME_IMAGE")
+    if want("P4") and image and shutil.which("docker"):
+        # The container, as the installation guide runs it.
+        d = sample(work, "p4")
+        mount = ["docker", "run", "--rm", "-v", f"{d}:/workspace", image]
+        init = subprocess.run(mount + ["init", "--index"], capture_output=True, text=True)
+        status = subprocess.run(mount + ["status"], capture_output=True, text=True)
+        msgs = "\n".join([
+            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"t","version":"1"}}}',
+            '{"jsonrpc":"2.0","method":"notifications/initialized"}',
+            '{"jsonrpc":"2.0","id":2,"method":"tools/list"}']) + "\n"
+        p = subprocess.Popen(["docker", "run", "--rm", "-i", "-v", f"{d}:/workspace", image, "serve"],
+                             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+        p.stdin.write(msgs); p.stdin.flush()
+        tools = 0
+        deadline = time.time() + 60
+        while time.time() < deadline:
+            line = p.stdout.readline()
+            if not line:
+                break
+            m = json.loads(line)
+            if m.get("id") == 2:
+                tools = len(m["result"]["tools"])
+                break
+        p.kill()
+        record("P4", init.returncode == 0 and "READY" in status.stdout and tools > 0,
+               f"init --index exit {init.returncode}; status {'READY' if 'READY' in status.stdout else 'not ready'}; serve listed {tools} tools")
+    elif want("P4"):
+        print("  skip  P4  set GRAPHLUME_IMAGE to an image and have docker running to check the container")
     if want("P1"):
         src = open(os.path.join(REPO, "install.sh")).read()
         record("P1", "proc_translated" in src, "installer detects Rosetta" if "proc_translated" in src else "installer trusts uname -m, which reports x86_64 under Rosetta")

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sutrakam/graphlume/internal/acquire/fs"
 	"github.com/sutrakam/graphlume/internal/config"
 	"github.com/sutrakam/graphlume/internal/errs"
 )
@@ -343,6 +344,7 @@ func NewPlanWith(ctx context.Context, repoRoot string, cfg config.Config, opts O
 	if err != nil {
 		return plan, err
 	}
+	projects = withoutExcluded(abs, cfg, projects)
 	plan.Projects = projects
 	plan.Sources = sources
 	if len(projects) == 0 {
@@ -895,4 +897,22 @@ func isAndroidProject(dir string) bool {
 		}
 	}
 	return false
+}
+
+// withoutExcluded drops the projects whose directory index.exclude leaves out.
+// The index has none of their files, so a compiler indexer run over them took
+// time and produced an index that matched nothing.
+func withoutExcluded(root string, cfg config.Config, projects []Project) []Project {
+	w, err := fs.NewWalker(root, cfg)
+	if err != nil {
+		return projects
+	}
+	out := projects[:0]
+	for _, p := range projects {
+		if p.Dir != "." && w.Excluded(p.Dir, true) {
+			continue
+		}
+		out = append(out, p)
+	}
+	return out
 }

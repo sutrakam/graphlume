@@ -803,3 +803,11 @@ func (w *Walker) included(rel string) bool {
 	}
 	return false
 }
+
+// Excluded reports whether rel, repository-relative and slash-separated, is
+// left out by the configured index.exclude patterns: the same rule the walk
+// applies, so a caller planning work on a directory skips exactly what the
+// index skips.
+func (w *Walker) Excluded(rel string, isDir bool) bool {
+	return w.configExcluded(rel, isDir)
+}

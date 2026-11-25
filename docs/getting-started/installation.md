@@ -77,16 +77,17 @@ A checksum shows the download is intact, not who built it. `SHA256SUMS` is signe
 docker pull ghcr.io/sutrakam/graphlume:latest
 ```
 
-The image is built for `linux/amd64` and `linux/arm64`, holds the static binary and nothing else (no shell, no package manager), and runs as a non-root user (uid 65532). Tags carry no `v`: release `v1.0.2` is `:1.0.2`, `:1.0` and `:latest`.
+The image is built for `linux/amd64` and `linux/arm64`, holds the static binary and nothing else (no shell, no package manager, no language toolchains), and runs as a non-root user (uid 65532). Without a Go toolchain, Go's standard-library imports are left as stubs, so fewer Go relationships are compiler-proven than with a native install. Tags carry no `v`: release `v1.0.2` is `:1.0.2`, `:1.0` and `:latest`.
 
 GraphLume keeps its index inside the repository, in `.graphlume/`. Mount the repository at `/workspace`, which is the working directory:
 
 ```bash
-# Index, then serve over stdio to an MCP client
-docker run --rm -v "$PWD:/workspace" ghcr.io/sutrakam/graphlume init
-docker run --rm -v "$PWD:/workspace" ghcr.io/sutrakam/graphlume index
-docker run --rm -v "$PWD:/workspace" ghcr.io/sutrakam/graphlume resolve
+# Create and build the index, then serve it over stdio to an MCP client
+docker run --rm -v "$PWD:/workspace" ghcr.io/sutrakam/graphlume init --index
 docker run --rm -i -v "$PWD:/workspace" ghcr.io/sutrakam/graphlume serve
+
+# Later, bring the index up to date
+docker run --rm -v "$PWD:/workspace" ghcr.io/sutrakam/graphlume index
 ```
 
 On Linux the container user must be able to write `.graphlume/` in your checkout, so run it as yourself by adding `--user "$(id -u):$(id -g)"` to each command. Docker Desktop on macOS and Windows maps ownership for you.
@@ -96,7 +97,7 @@ To keep the source tree read-only and the index out of it, mount the repository 
 ```bash
 mkdir -p .graphlume
 docker run --rm -v "$PWD:/workspace:ro" -v graphlume-index:/workspace/.graphlume \
-  ghcr.io/sutrakam/graphlume index
+  ghcr.io/sutrakam/graphlume init --index
 ```
 
 Inside the container the project is named `workspace`, after the mount point, unless `.graphlume.yml` sets `project.name`.
@@ -138,7 +139,7 @@ An `.mcpb` file is a one-file extension for Claude Desktop and other clients tha
 | Linux x86_64 | `graphlume_<tag>_linux_amd64.mcpb` |
 | Linux ARM64 | `graphlume_<tag>_linux_arm64.mcpb` |
 
-The bundle serves an index; it does not build one. The repository you pick must already have been indexed with `graphlume init`, `graphlume index` and `graphlume resolve`, which needs the command-line tool from one of the methods above. Pointed at a repository with no index, the server still starts: it lists its tools and answers every call with the commands to run and the directory to run them in, and it begins answering from the index as soon as one exists, with no restart. It never starts indexing on its own. (Releases up to v1.0.0 exit instead, with `no index at … run 'graphlume init' and 'graphlume index' first`, which a client shows only as a server that disconnected.)
+The bundle serves an index; it does not build one. The repository you pick must already have been indexed with `graphlume init --all`, which needs the command-line tool from one of the methods above. Pointed at a repository with no index, the server still starts: it lists its tools and answers every call with the commands to run and the directory to run them in, and it begins answering from the index as soon as one exists, with no restart. It never starts indexing on its own.
 
 ---
 

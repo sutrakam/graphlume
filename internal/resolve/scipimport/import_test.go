@@ -761,3 +761,19 @@ func TestImportDeclinesAReceiver(t *testing.T) {
 		t.Errorf("Handle -> updateStatus is %s, want REFERENCES", got.Kind)
 	}
 }
+
+// TestAnEmptyIndexIsNotBlamedOnAnotherCommit: an indexer that could not load
+// its project (dependencies not installed) writes an index with no documents,
+// and the error said it was "probably built from a different commit".
+func TestAnEmptyIndexIsNotBlamedOnAnotherCommit(t *testing.T) {
+	ctx := context.Background()
+	reg, runID, _ := repoIndex(t)
+	path := scipFile(t)
+	_, err := NewImporter(reg, runID, scip.Options{RepoRoot: "/build/repo"}).Import(ctx, path)
+	if err == nil {
+		t.Fatal("an empty index was accepted silently")
+	}
+	if contains(err.Error(), "different commit") || !contains(err.Error(), "empty") {
+		t.Errorf("an empty index must be called empty, not blamed on another commit: %q", err)
+	}
+}

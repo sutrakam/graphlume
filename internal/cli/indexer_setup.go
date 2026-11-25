@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/sutrakam/graphlume/internal/config"
 	"github.com/sutrakam/graphlume/internal/indexer"
@@ -329,9 +330,14 @@ func (s *guidedSetup) carryOut(it indexer.SetupItem) error {
 		if plan.Runner == "" {
 			plan.Runner = indexer.RunnerNative
 		}
+		// A download and install can take a minute; silence that long reads
+		// as a hang, so say what is happening and that it still is.
+		s.printf("    Installing %s (%s)...\n", it.Install.Ref, it.Size)
+		stop := s.heartbeat("still installing " + string(it.Install.Indexer))
 		done, failed := setupProvision(s.ctx, plan, []indexer.Install{*it.Install}, indexer.Options{
 			AssumeYes: true, Logger: s.g.Log(), Audit: indexer.LogAudit{Logger: s.g.Log()},
 		})
+		stop()
 		if len(failed) > 0 {
 			return fmt.Errorf("could not install %s: %w", failed[0].Install.Indexer, failed[0].Err)
 		}
@@ -397,6 +403,31 @@ func (s *guidedSetup) runAll(dir string, cmds [][]string) error {
 	}
 	return nil
 }
+
+// heartbeat prints "<what>, <n>s" every heartbeatEvery until the returned
+// function is called, so a long step never runs silent.
+func (s *guidedSetup) heartbeat(what string) (stop func()) {
+	done := make(chan struct{})
+	finished := make(chan struct{})
+	began := time.Now()
+	go func() {
+		defer close(finished)
+		t := time.NewTicker(heartbeatEvery)
+		defer t.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-t.C:
+				s.printf("    %s, %ds\n", what, int(time.Since(began).Seconds()))
+			}
+		}
+	}()
+	return func() { close(done); <-finished }
+}
+
+// heartbeatEvery is how often a long setup step says it is still running.
+var heartbeatEvery = 15 * time.Second
 
 // runEach runs the same commands in several directories. The command is
 // printed once; after it, one progress line names the directory being worked

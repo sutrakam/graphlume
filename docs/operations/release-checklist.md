@@ -39,6 +39,7 @@ on the build being released.
 |---|---|---|---|
 | C1 | The same tool is needed by several projects in the folder | Asked once; the answer applies to every project | Unit, Journey |
 | C2 | A second run after the user answered | Not asked again; declined offers stay declined, accepted ones are already present | Unit, Journey |
+| C6 | Answering yes to every offer (the default) | The indexers install and run, with a progress line at least every 15 seconds | Journey |
 | C3 | No terminal and no `--yes` | Never waits for input; takes the safe default and says so | Journey |
 | C4 | `--yes` | Installs only the small pinned, checksum-verified indexers; never a toolchain or a build | Unit |
 | C5 | Ctrl-C at a question | Exits cleanly, nothing half-installed | Journey |
@@ -97,4 +98,5 @@ on the build being released.
 |---|---|---|---|
 | P1 | macOS on Apple silicon | The installer fetches the arm64 binary | Journey |
 | P2 | Linux x86-64 and ARM64 | CI and the release container | CI |
+| P4 | The container image | `init --index`, `status` and `serve` work as the installation guide runs them | Journey (`GRAPHLUME_IMAGE=<image>`) |
 | P3 | Windows | Paths, the PowerShell installer, no shell-only steps | CI (Windows job) |

@@ -135,7 +135,7 @@ go install github.com/sutrakam/graphlume/cmd/graphlume@latest
 ```
 
 ```bash
-docker run --rm -v "$PWD:/workspace" ghcr.io/sutrakam/graphlume index
+docker run --rm -v "$PWD:/workspace" ghcr.io/sutrakam/graphlume init --index
 ```
 
 Pinned versions, checksum verification and offline installs: [installation guide](docs/getting-started/installation.md).

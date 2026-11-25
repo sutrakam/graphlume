@@ -89,8 +89,10 @@ go install github.com/sutrakam/graphlume/cmd/graphlume@latest
 ### In a container
 
 ```bash
-docker run --rm -v "$PWD:/workspace" ghcr.io/sutrakam/graphlume index
+docker run --rm -v "$PWD:/workspace" ghcr.io/sutrakam/graphlume init --index
 ```
+
+The image holds the binary and nothing else. For Go code that means no Go standard library to type-check against, so fewer relationships are compiler-proven than with a native install.
 
 ### Check the installation
 
