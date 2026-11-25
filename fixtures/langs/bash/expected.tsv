@@ -1,0 +1,60 @@
+# Bash definition rule. Recorded: functions in every spelling (name() {}, function name {},
+# function name() {}, name() ( ... )), nested ones and those inside if included (function);
+# aliases anywhere (function); variables assigned at the top level of the file: NAME=value,
+# export NAME=value, declare/typeset [flags] NAME[=value] (variable), and readonly NAME=value and
+# declare/typeset -r (constant). Each name of a multi-assignment line is its own symbol, and a name
+# assigned twice at top level is recorded at each assignment.
+# An append (NAME+=value, NAME+=(...)) is not an assignment of its own and is not recorded.
+# Not recorded: local, anything assigned inside a function, loop, case or if, a bare "export NAME",
+# "export -f", env prefixes (FOO=1 cmd), text inside here-documents and strings.
+deploy.sh	4	variable	VERSION
+deploy.sh	5	constant	ROOT_DIR
+deploy.sh	6	constant	CONFIG_FILE
+deploy.sh	7	variable	RETRIES
+deploy.sh	8	variable	SERVERS
+deploy.sh	9	variable	REGIONS
+deploy.sh	10	variable	PLAIN_NAME
+deploy.sh	11	variable	APP_ENV
+deploy.sh	12	variable	PATH_EXTRA
+deploy.sh	14	variable	local_name
+deploy.sh	15	variable	count
+deploy.sh	16	variable	items
+deploy.sh	18	function	ll
+deploy.sh	19	function	gs
+deploy.sh	21	function	log
+deploy.sh	27	function	usage
+deploy.sh	31	function	cleanup
+deploy.sh	35	function	check_deps
+deploy.sh	41	function	build-image
+deploy.sh	45	function	deploy:prod
+deploy.sh	49	function	nested_outer
+deploy.sh	50	function	inner_helper
+deploy.sh	57	function	debug_log
+deploy.sh	62	function	run_all
+deploy.sh	67	function	main
+lib.sh	6	constant	BUILD_ID
+lib.sh	7	constant	FROZEN
+lib.sh	8	constant	PRIMES
+lib.sh	9	constant	OTHER
+lib.sh	9	constant	SOLO
+lib.sh	10	variable	GLOBAL_FLAG
+lib.sh	11	variable	LOG_LEVEL
+lib.sh	11	variable	TZ
+lib.sh	12	variable	PATH
+lib.sh	14	function	la
+lib.sh	15	function	grep
+lib.sh	17	function	die
+lib.sh	19	function	is_root
+lib.sh	21	function	with_keyword
+lib.sh	30	function	retry
+lib.sh	65	function	pipeline
+lib.sh	72	function	fetch
+lib.sh	74	function	fetch
+lib.sh	77	variable	DEFAULT_ARGS
+append.sh	3	variable	hooks
+append.sh	7	variable	PATH_LIST
+append.sh	10	variable	stages
+append.sh	13	variable	counter
+append.sh	16	variable	total
+append.sh	17	variable	EXTRA_FLAGS
+append.sh	20	function	register

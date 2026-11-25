@@ -1,0 +1,69 @@
+# Julia definitions. Rule:
+#  - module and baremodule are package;
+#  - struct, mutable struct, abstract type, primitive type and @enum are class (named without type parameters or supertype; enum members are not extracted);
+#  - function f, function Base.get, function Base.:+, function Vec{T}(...) (named Vec), each with or without where and a return type, and `function f end`, are function at any depth;
+#  - a macro is a function named without the @;
+#  - the short form f(x) = ... (same name shapes, operators included, also behind @inline) is a function at the top level of a file, module or struct (an inner constructor is one), or in the branches of a top-level if / @static if; inside a function body it is a local closure and is not a definition;
+#  - const NAME = ... (also const global, const NAME::T, const A, B = ...) is a constant; const NAME{T} = ... and const NAME = Union{...} (a parametrised type on the right) are type_alias;
+#  - plain and global assignments, (x::T)(args) functors, calls and anonymous functions are not definitions.
+types.jl	4	package	Geometry
+types.jl	9	constant	ORIGIN
+types.jl	10	type_alias	Pair2
+types.jl	11	type_alias	Numeric
+types.jl	12	constant	SCALE
+types.jl	13	constant	LIMIT
+types.jl	14	constant	LO
+types.jl	14	constant	HI
+types.jl	19	class	Shape
+types.jl	20	class	Solid
+types.jl	21	class	Octet
+types.jl	23	class	Point
+types.jl	26	function	Point
+types.jl	27	function	Point
+types.jl	32	class	Cursor
+types.jl	37	class	Plain
+types.jl	41	class	Color
+types.jl	42	class	Level
+types.jl	47	class	Options
+types.jl	51	package	Inner
+types.jl	52	constant	DEPTH
+types.jl	55	package	Bare
+methods.jl	1	package	Methods
+methods.jl	3	function	plain
+methods.jl	7	function	typed
+methods.jl	11	function	get
+methods.jl	15	function	+
+methods.jl	19	function	bounded
+methods.jl	23	function	both
+methods.jl	27	function	Vec
+methods.jl	31	function	nomethods
+methods.jl	37	function	short
+methods.jl	38	function	short2
+methods.jl	39	function	isempty
+methods.jl	40	function	-
+methods.jl	41	function	*
+methods.jl	42	function	Vec
+methods.jl	43	function	bound
+methods.jl	46	function	fast
+methods.jl	47	function	slow
+methods.jl	51	function	twice
+methods.jl	58	function	short
+methods.jl	61	function	versioned
+methods.jl	63	function	versioned
+methods.jl	68	function	outer
+methods.jl	70	function	nested
+giveup.jl	7	function	row_scale
+giveup.jl	8	function	column_scale
+giveup.jl	10	function	solve!
+giveup.jl	17	function	after
+giveup.jl	22	class	Pair2
+giveup.jl	27	constant	LIMIT
+operators.jl	1	class	Weights
+operators.jl	5	function	==
+operators.jl	6	function	<
+operators.jl	7	function	+
+operators.jl	8	function	isequal
+operators.jl	10	function	==
+operators.jl	12	function	>=
+operators.jl	16	function	!=
+operators.jl	20	function	helper

@@ -1,0 +1,48 @@
+# Roadmap
+
+What GraphLume does not do yet, and what is being worked on. Nothing here has a
+date; items move to the [CHANGELOG](../CHANGELOG.md) when they ship.
+
+## Distribution
+
+| Item | Status | Why it matters |
+|---|---|---|
+| Tagged releases with binaries | **Shipped** | `install.sh`, `install.ps1` and the offline archives resolve a published release. |
+| Homebrew formula | Planned | The release job already renders `graphlume.rb` from the release's `SHA256SUMS` (`scripts/release/render-homebrew-formula.sh`). Publishing it waits on a `sutrakam/homebrew-tap` repository and a `HOMEBREW_TAP_TOKEN` secret; until then the job only renders and checks it. |
+| Container image on GHCR | **Shipped** | `ghcr.io/sutrakam/graphlume`, for `linux/amd64` and `linux/arm64`, published by the release job. |
+| Windows packages (winget, Scoop) | Planned | Manifests are in `packaging/winget` and `packaging/scoop`, and `scripts/release/update-manifests.sh` fills them in from a release's checksums. They are not yet submitted to winget-pkgs or a Scoop bucket. |
+| Signed releases, SBOM and provenance | **Shipped** | Checksums signed with Sigstore cosign (keyless), a CycloneDX SBOM per platform, and GitHub build-provenance attestations. See [Verifying a release](operations/verifying-a-release.md). |
+| Listing in MCP registries | Planned | `server.json` (the official MCP registry) and `smithery.yaml` describe the server; neither listing is published yet. |
+| MCPB bundle | **Shipped** | Builds and attaches `.mcpb` bundle assets for one-click desktop installs. |
+
+## Integrations
+
+| Item | Status | Why it matters |
+|---|---|---|
+| Reusable GitHub Action (`uses: sutrakam/graphlume@v1`) | **Shipped** | Composite action in `action.yml` runs index, SCIP import, PR impact, SARIF and sticky comments in one step. |
+| Install links for agents | **Shipped** | `graphlume install --links` prints 1-click deep-links for Cursor (`cursor://`), VS Code (`vscode://`), Windsurf and LM Studio. |
+| Editor extension (VS Code) | **Shipped** | Blast radius, graph queries and callers inline in `editors/vscode`, reading from the local SQLite index. |
+| Recorded demo | Planned | A short screen recording of an agent calling `context` and `impact`. |
+
+## Product
+
+| Item | Status | Why it matters |
+|---|---|---|
+| Vue 3 SFC SCIP indexing | **Shipped** | Synthesizes `.vue.ts` mirrors with whitespace masking to preserve 1:1 line/column coordinates for `scip-typescript`. |
+| Compact MCP frontdoor profile | **Shipped** | Exposes a single unified `graphlume` router tool, about 720 tokens of schema against 12,770 for the full profile (`graphlume tool list`). |
+| Temporal git coupling for impact | **Shipped** | Mines commit co-change history to boost PR blast-radius recall and discover coupled companion files. |
+| Test discovery through interface dispatch | **Shipped** | `tests` and `untested_critical` follow a method to the interface or base-class methods it implements, and report the tests that call those as `interface_dispatch`. |
+| Declarative graph query (`graph`) | **Shipped** | Guarded read-only SQL graph query tool via MCP (`graph`), CLI (`graphlume query`) and compact frontdoor (`action: query`), matching what other code-graph tools offer. |
+| Call binding by column and name | **Shipped** | `PromoteCalls` pairs compiler occurrences with parser call columns via `pairsOneToOne` and `(line, name)` grouping. |
+| Incremental re-binding of cross-file handlers | **Shipped** | An incremental update runs the same resolve pass as `index --full`, so a route handler declared in another file is bound again after either file changes. |
+| Deeper resolution for more languages | Exploring | 12 languages are `typed` (C#, C++, Go, Java, JavaScript, Kotlin, PHP, Python, Ruby, Rust, Scala, TypeScript), 35 are `resolved`, 68 are `parsed` (definitions and search only) and 91 are text only. Measured against compiler indexes ([accuracy.md](accuracy.md)): Python (`scip-python`, four repositories), JavaScript (`scip-typescript`, 99.88% of `high` edges right), Ruby (`scip-ruby`: 99.9% on its standard library, 100.0% on Homebrew), Rust (`rust-analyzer`: 95.5% raw on rtk, every wrong edge a rust-analyzer artefact; 98.9% and 100% on two crates), C (`scip-clang`: 100.0% and 98.4%) and C++ (small samples, 100%). PHP is `typed` on multi-file fixtures only: `scip-php` could not be installed, because its only releases require a `google/protobuf` that Composer blocks for a security advisory. See `graphlume languages`. |
+
+## Known issues
+
+Found by running every command and portal screen while writing the guides.
+
+| Issue | Status |
+|---|---|
+| The portal's graph view can draw boxes on top of each other on a dense neighbourhood. The lists and tables on the same page are unaffected. | Open |
+
+Suggestions and votes: [open a discussion](https://github.com/sutrakam/graphlume/discussions).

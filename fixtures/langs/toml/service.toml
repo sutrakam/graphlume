@@ -1,0 +1,45 @@
+# Keys at the top level, before any table, are not definitions.
+title = "service"
+version = 3
+tags = ["a", "b"]
+
+[server]
+host = "0.0.0.0"
+port = 8080
+
+[server.tls]
+enabled = true
+cert = "cert.pem"
+
+[database.primary]
+url = "postgres://localhost/app"
+pool = { min = 1, max = 10 }
+
+[database.replica]
+url = "postgres://replica/app"
+
+# A quoted segment keeps its dot.
+[plugins."my.plugin"]
+level = "debug"
+
+[ logging . file ]
+path = "/var/log/app.log"
+
+# An inline table and a dotted key are values of a key, not tables.
+[limits]
+rate.window = 60
+burst = { count = 5, per = "second" }
+
+[[endpoints]]
+name = "health"
+path = "/health"
+
+[[endpoints]]
+name = "metrics"
+path = "/metrics"
+
+[[jobs.nightly]]
+cron = "0 2 * * *"
+
+[jobs.nightly.retry]
+attempts = 3

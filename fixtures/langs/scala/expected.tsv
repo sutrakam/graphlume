@@ -1,0 +1,28 @@
+# Scala: traits (listed as interfaces), classes, case classes, enums (listed as
+# classes), objects (listed as variables: a singleton value, so a companion
+# does not compete with its class), and defs (listed as functions: a member is
+# a function whose qualified name carries its type). An enum case is listed as
+# a function, the catch-all kind for a kind the query does not name. A call, a
+# `new` and an import are not definitions. A type alias (also an abstract type
+# member) is a type_alias, and an operator def (`def /`) a function. A def local
+# to a block, and a def of an anonymous class, are not definitions.
+Sample.scala	6	interface	Shape
+Sample.scala	7	function	area
+Sample.scala	10	class	Circle
+Sample.scala	11	function	area
+Sample.scala	13	function	grow
+Sample.scala	16	class	Point
+Sample.scala	18	variable	Circle
+Sample.scala	19	function	apply
+Sample.scala	21	function	unit
+Sample.scala	24	class	Suit
+Sample.scala	25	function	Hearts
+Sample.scala	25	function	Spades
+Sample.scala	28	variable	Main
+Sample.scala	29	function	main
+Sample.scala	35	class	Path
+Sample.scala	36	type_alias	Segment
+Sample.scala	37	function	/
+Sample.scala	38	function	++
+Sample.scala	40	function	run
+Sample.scala	47	type_alias	Table

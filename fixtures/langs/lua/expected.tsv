@@ -1,0 +1,33 @@
+# Lua definitions. Rule:
+#  - function f, local function f and `local f = function` (both at any depth), and a top-level `f = function` / `M.f = function` are functions;
+#  - function M.f and function M.a.f are functions named f; function M:m is a method named m;
+#  - a function-valued field of a table that is assigned or returned (up to 3 levels of nesting; the key may be a name or a string) is a function; a table passed as a call argument declares nothing;
+#  - a top-level local or global initialised with a table constructor is a variable (the module or class object);
+#  - other locals, numbers, strings, non-function fields and anonymous functions are not definitions.
+module.lua	2	variable	Stack
+module.lua	8	function	trim
+module.lua	9	function	inner
+module.lua	15	function	clamp
+module.lua	21	function	new
+module.lua	28	method	push
+module.lua	33	method	pop
+module.lua	39	function	describe
+module.lua	43	function	size
+module.lua	47	function	on_full
+module.lua	51	function	global_log
+module.lua	55	variable	Registry
+module.lua	57	function	Handler
+module.lua	64	function	builder
+module.lua	66	function	before
+module.lua	71	variable	cfg
+class.lua	2	variable	Animal
+class.lua	5	method	new
+class.lua	11	method	speak
+class.lua	17	method	speak
+class.lua	18	function	bark
+class.lua	24	function	create
+class.lua	28	function	counter
+class.lua	37	variable	pets
+class.lua	46	function	make
+class.lua	47	function	pick
+class.lua	51	function	alias

@@ -1,0 +1,493 @@
+{
+  "is_error": false,
+  "result": {
+    "index_revision": 1,
+    "index_status": "ready",
+    "items": [
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 4,
+        "name": "handleEvent01",
+        "path": "internal/handlers/events_1.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 8,
+        "name": "handleEvent02",
+        "path": "internal/handlers/events_1.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 12,
+        "name": "handleEvent03",
+        "path": "internal/handlers/events_1.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 16,
+        "name": "handleEvent04",
+        "path": "internal/handlers/events_1.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 20,
+        "name": "handleEvent05",
+        "path": "internal/handlers/events_1.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 24,
+        "name": "handleEvent06",
+        "path": "internal/handlers/events_1.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 28,
+        "name": "handleEvent07",
+        "path": "internal/handlers/events_1.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 32,
+        "name": "handleEvent08",
+        "path": "internal/handlers/events_1.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 36,
+        "name": "handleEvent09",
+        "path": "internal/handlers/events_1.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 40,
+        "name": "handleEvent10",
+        "path": "internal/handlers/events_1.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 4,
+        "name": "handleEvent11",
+        "path": "internal/handlers/events_2.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 8,
+        "name": "handleEvent12",
+        "path": "internal/handlers/events_2.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 12,
+        "name": "handleEvent13",
+        "path": "internal/handlers/events_2.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 16,
+        "name": "handleEvent14",
+        "path": "internal/handlers/events_2.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 20,
+        "name": "handleEvent15",
+        "path": "internal/handlers/events_2.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 24,
+        "name": "handleEvent16",
+        "path": "internal/handlers/events_2.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 28,
+        "name": "handleEvent17",
+        "path": "internal/handlers/events_2.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 32,
+        "name": "handleEvent18",
+        "path": "internal/handlers/events_2.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 36,
+        "name": "handleEvent19",
+        "path": "internal/handlers/events_2.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 40,
+        "name": "handleEvent20",
+        "path": "internal/handlers/events_2.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 4,
+        "name": "handleEvent21",
+        "path": "internal/handlers/events_3.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 8,
+        "name": "handleEvent22",
+        "path": "internal/handlers/events_3.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 12,
+        "name": "handleEvent23",
+        "path": "internal/handlers/events_3.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 16,
+        "name": "handleEvent24",
+        "path": "internal/handlers/events_3.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 20,
+        "name": "handleEvent25",
+        "path": "internal/handlers/events_3.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 24,
+        "name": "handleEvent26",
+        "path": "internal/handlers/events_3.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 28,
+        "name": "handleEvent27",
+        "path": "internal/handlers/events_3.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 32,
+        "name": "handleEvent28",
+        "path": "internal/handlers/events_3.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 36,
+        "name": "handleEvent29",
+        "path": "internal/handlers/events_3.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 40,
+        "name": "handleEvent30",
+        "path": "internal/handlers/events_3.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 4,
+        "name": "handleEvent31",
+        "path": "internal/handlers/events_4.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 8,
+        "name": "handleEvent32",
+        "path": "internal/handlers/events_4.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 12,
+        "name": "handleEvent33",
+        "path": "internal/handlers/events_4.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 16,
+        "name": "handleEvent34",
+        "path": "internal/handlers/events_4.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 20,
+        "name": "handleEvent35",
+        "path": "internal/handlers/events_4.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 24,
+        "name": "handleEvent36",
+        "path": "internal/handlers/events_4.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 28,
+        "name": "handleEvent37",
+        "path": "internal/handlers/events_4.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 32,
+        "name": "handleEvent38",
+        "path": "internal/handlers/events_4.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 36,
+        "name": "handleEvent39",
+        "path": "internal/handlers/events_4.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 40,
+        "name": "handleEvent40",
+        "path": "internal/handlers/events_4.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 4,
+        "name": "handleEvent41",
+        "path": "internal/handlers/events_5.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 8,
+        "name": "handleEvent42",
+        "path": "internal/handlers/events_5.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 12,
+        "name": "handleEvent43",
+        "path": "internal/handlers/events_5.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 16,
+        "name": "handleEvent44",
+        "path": "internal/handlers/events_5.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 20,
+        "name": "handleEvent45",
+        "path": "internal/handlers/events_5.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 24,
+        "name": "handleEvent46",
+        "path": "internal/handlers/events_5.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 28,
+        "name": "handleEvent47",
+        "path": "internal/handlers/events_5.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 32,
+        "name": "handleEvent48",
+        "path": "internal/handlers/events_5.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 36,
+        "name": "handleEvent49",
+        "path": "internal/handlers/events_5.go",
+        "source": "source_code",
+        "why": "same package directory"
+      },
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 40,
+        "name": "handleEvent50",
+        "path": "internal/handlers/events_5.go",
+        "source": "source_code",
+        "why": "same package directory"
+      }
+    ],
+    "notes": [
+      "References spelled \"record\" in this index: 63. 63 bound to this definition."
+    ],
+    "page": {
+      "limit": 50,
+      "next_offset": 50,
+      "offset": 0,
+      "returned": 50,
+      "total": 63
+    },
+    "provenance": {
+      "age_seconds": 305,
+      "caveat": "HEAD could not be determined, so index freshness is unknown. This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.",
+      "head_matches_build": false
+    },
+    "reliability": {
+      "level": "good"
+    },
+    "summary": "INCOMPLETE — rows 1-50 of 63 are shown. 63 caller(s) of record (internal/handlers/record.go:7) are recorded.",
+    "truncated": true,
+    "truncated_reason": "showing rows 1-50 of 63 caller(s), so 13 are not shown here. Pass offset=50 to read on (limit accepts up to 200)",
+    "verdict": {
+      "counts": {
+        "high": 50
+      },
+      "next_step": "The rows shown are high confidence or better and can be used as they are. The LIST is known to be incomplete, so conclude nothing from what is absent: read on with offset, then run search for the name. Reindex first: these tiers describe the indexed revision, not your working tree.",
+      "signals": [
+        "rows exist that this answer does not carry (see truncated)",
+        "the index does not match HEAD; these tiers describe the indexed revision, not your working tree"
+      ],
+      "status": "incomplete"
+    }
+  },
+  "text": "=== SYSTEM METADATA ===\nINCOMPLETE — rows 1-50 of 63 are shown. 63 caller(s) of record (internal/handlers/record.go:7) are recorded.\nindex_revision: 1  status: ready\ntruncated: showing rows 1-50 of 63 caller(s), so 13 are not shown here. Pass offset=50 to read on (limit accepts up to 200)\nnote: References spelled \"record\" in this index: 63. 63 bound to this definition.\nprovenance: HEAD could not be determined, so index freshness is unknown. This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.\nverdict: incomplete (high=50)\nverdict_signal: rows exist that this answer does not carry (see truncated)\nverdict_signal: the index does not match HEAD; these tiers describe the indexed revision, not your working tree\nnext_step: The rows shown are high confidence or better and can be used as they are. The LIST is known to be incomplete, so conclude nothing from what is absent: read on with offset, then run search for the name. Reindex first: these tiers describe the indexed revision, not your working tree.\n\n=== INFERRED ===\n- calls handleEvent01  internal/handlers/events_1.go:4  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent02  internal/handlers/events_1.go:8  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent03  internal/handlers/events_1.go:12  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent04  internal/handlers/events_1.go:16  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent05  internal/handlers/events_1.go:20  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent06  internal/handlers/events_1.go:24  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent07  internal/handlers/events_1.go:28  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent08  internal/handlers/events_1.go:32  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent09  internal/handlers/events_1.go:36  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent10  internal/handlers/events_1.go:40  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent11  internal/handlers/events_2.go:4  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent12  internal/handlers/events_2.go:8  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent13  internal/handlers/events_2.go:12  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent14  internal/handlers/events_2.go:16  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent15  internal/handlers/events_2.go:20  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent16  internal/handlers/events_2.go:24  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent17  internal/handlers/events_2.go:28  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent18  internal/handlers/events_2.go:32  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent19  internal/handlers/events_2.go:36  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent20  internal/handlers/events_2.go:40  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent21  internal/handlers/events_3.go:4  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent22  internal/handlers/events_3.go:8  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent23  internal/handlers/events_3.go:12  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent24  internal/handlers/events_3.go:16  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent25  internal/handlers/events_3.go:20  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent26  internal/handlers/events_3.go:24  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent27  internal/handlers/events_3.go:28  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent28  internal/handlers/events_3.go:32  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent29  internal/handlers/events_3.go:36  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent30  internal/handlers/events_3.go:40  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent31  internal/handlers/events_4.go:4  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent32  internal/handlers/events_4.go:8  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent33  internal/handlers/events_4.go:12  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent34  internal/handlers/events_4.go:16  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent35  internal/handlers/events_4.go:20  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent36  internal/handlers/events_4.go:24  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent37  internal/handlers/events_4.go:28  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent38  internal/handlers/events_4.go:32  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent39  internal/handlers/events_4.go:36  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent40  internal/handlers/events_4.go:40  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent41  internal/handlers/events_5.go:4  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent42  internal/handlers/events_5.go:8  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent43  internal/handlers/events_5.go:12  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent44  internal/handlers/events_5.go:16  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent45  internal/handlers/events_5.go:20  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent46  internal/handlers/events_5.go:24  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent47  internal/handlers/events_5.go:28  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent48  internal/handlers/events_5.go:32  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent49  internal/handlers/events_5.go:36  [confidence=high source=source_code]  (same package directory)\n- calls handleEvent50  internal/handlers/events_5.go:40  [confidence=high source=source_code]  (same package directory)\n",
+  "tool": "callers"
+}

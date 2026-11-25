@@ -1,0 +1,16 @@
+# PHP: functions, classes, interfaces, traits (listed as interfaces), enums
+# (listed as classes), methods and constructors. An enum case is listed as a
+# function: the catch-all kind for a kind the query does not name. A call, a
+# `new`, a `use` and a promoted constructor parameter are not definitions.
+sample.php	6	function	greet
+sample.php	11	interface	Shape
+sample.php	13	method	area
+sample.php	16	interface	Loud
+sample.php	18	method	shout
+sample.php	23	class	Suit
+sample.php	25	function	Hearts
+sample.php	26	function	Spades
+sample.php	29	class	Circle
+sample.php	33	method	__construct
+sample.php	37	method	area
+sample.php	42	method	scale

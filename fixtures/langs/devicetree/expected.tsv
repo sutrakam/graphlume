@@ -1,0 +1,41 @@
+# Devicetree: a definition is
+#   every node block at any depth, named by its node name without the unit address
+#   (memory@80000000 -> memory)                                           -> class
+#   every label on a node (cpu0: cpu@0 { } -> cpu0)                      -> variable
+# When a label equals the node name on the same line (soc: soc@10000000) the index
+# keeps one symbol for that line, the node (class), so the label is not listed.
+# Not definitions: the root node "/", &label { } and &{/path} { } overrides,
+# /delete-node/, properties (including boolean ones), #include, #define, /memreserve/.
+board.dts	14	class	aliases
+board.dts	19	class	chosen
+board.dts	23	class	memory
+board.dts	28	class	cpus
+board.dts	32	class	cpu
+board.dts	32	variable	cpu0
+board.dts	38	class	cpu
+board.dts	38	variable	cpu1
+board.dts	44	variable	osc
+board.dts	44	class	oscillator
+board.dts	50	class	soc
+board.dts	54	class	serial
+board.dts	54	variable	uart0
+board.dts	61	class	ethernet
+board.dts	65	class	ethernet-phy
+board.dts	65	variable	phy0
+board.dts	70	variable	gpio
+board.dts	70	class	gpio-controller
+board.dts	77	class	leds
+board.dts	80	class	led-heartbeat
+soc.dtsi	7	class	soc
+soc.dtsi	12	variable	intc
+soc.dtsi	12	class	interrupt-controller
+soc.dtsi	18	class	spi
+soc.dtsi	18	variable	spi0
+soc.dtsi	22	class	flash
+soc.dtsi	27	class	touch
+soc.dtsi	34	variable	a
+soc.dtsi	34	class	i2c
+soc.dtsi	34	variable	i2c0
+soc.dtsi	37	class	eeprom
+soc.dtsi	43	class	timer
+soc.dtsi	56	class	display

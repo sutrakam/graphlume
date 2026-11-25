@@ -1,0 +1,27 @@
+# Bicep: every named top-level declaration, at the line of the keyword (a decorator
+# on the lines above belongs to it).
+#   param, output -> variable      var -> constant      type -> type_alias
+#   func -> function               resource, module (including existing and loops) -> class
+# Not definitions: properties inside a resource or module object, loop variables,
+# metadata, targetScope, uses of a symbol (storage.id), decorators, and the
+# `param x = value` lines of a .bicepparam file (they assign, they do not declare).
+main.bicep	7	variable	prefix
+main.bicep	9	variable	location
+main.bicep	15	variable	skuName
+main.bicep	17	variable	tags
+main.bicep	19	type_alias	storageSku
+main.bicep	22	type_alias	networkRule
+main.bicep	27	constant	storageName
+main.bicep	28	constant	rules
+main.bicep	35	function	buildName
+main.bicep	37	class	workspace
+main.bicep	47	class	storage
+main.bicep	57	class	blobService
+main.bicep	62	class	existingVault
+main.bicep	66	class	containers
+main.bicep	71	class	network
+main.bicep	79	class	registry
+main.bicep	86	variable	storageId
+main.bicep	87	variable	blobEndpoint
+main.bicep	88	variable	vaultUri
+prod.bicepparam	3	constant	environment

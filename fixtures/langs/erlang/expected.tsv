@@ -1,0 +1,24 @@
+# Rule: a function is a function, with the clauses of one name and arity folded
+# into one symbol at the first clause (area/1 and area/2 stay apart);
+# -module(name). is a package; -type and -opaque are a type_alias;
+# -record(name, {...}) is a class; -define(NAME, v). is a constant and
+# -define(NAME(Args), body). is a function. Not definitions: -spec, -callback,
+# -export, -import, -behaviour, record fields, a fun expression, calls.
+sample.erl	2	package	sample
+sample.erl	9	constant	MAX
+sample.erl	10	constant	TIMEOUT
+sample.erl	11	function	SQUARE
+sample.erl	12	function	LOG
+sample.erl	13	constant	EMPTY
+sample.erl	15	class	point
+sample.erl	16	class	state
+sample.erl	21	type_alias	shape
+sample.erl	22	type_alias	id
+sample.erl	23	type_alias	pair
+sample.erl	24	type_alias	handle
+sample.erl	32	function	start
+sample.erl	36	function	add
+sample.erl	39	function	area
+sample.erl	46	function	area
+sample.erl	50	function	helper
+sample.erl	53	function	local_fun

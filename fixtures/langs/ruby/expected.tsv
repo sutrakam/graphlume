@@ -1,0 +1,30 @@
+# Ruby: modules (listed as packages), classes, constants assigned in a module or class body, and methods named as the source writes them: a setter (x=), an operator ([], ==, <=>, +), a constant (GET), a predicate or bang name, def self.x.
+# attr_reader / attr_writer / attr_accessor define one field per literal symbol (a reader and a writer of one name are one field); alias, alias :a :b and alias_method :a, :b define the new name as a method;
+# define_method(:name) and define_method("name") define a method. Not definitions: include / extend, a call, an instance variable, a local variable, and attr_reader or define_method with a name computed at run time.
+sample.rb	1	package	Shop
+sample.rb	2	package	Helpers
+sample.rb	5	constant	LIMIT
+sample.rb	8	class	Request
+sample.rb	10	field	env
+sample.rb	10	field	path
+sample.rb	11	field	name
+sample.rb	12	field	a
+sample.rb	12	field	b
+sample.rb	14	method	new_name
+sample.rb	15	method	sym_new
+sample.rb	16	method	other_name
+sample.rb	17	method	dyn
+sample.rb	18	method	dyn2
+sample.rb	21	method	initialize
+sample.rb	27	method	run
+sample.rb	31	method	x=
+sample.rb	35	method	[]
+sample.rb	39	method	==
+sample.rb	43	method	GET
+sample.rb	47	method	build
+sample.rb	51	method	create=
+sample.rb	53	method	<=>
+sample.rb	54	method	+
+sample.rb	55	method	ready?
+sample.rb	56	method	save!
+sample.rb	57	method	flag=

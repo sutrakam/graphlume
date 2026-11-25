@@ -1,0 +1,85 @@
+# Elixir definition rule. Recorded: defmodule (package), defprotocol (interface), defimpl (class,
+# named by the protocol it implements); def, defp, defmacro, defmacrop, defguard, defguardp and
+# defdelegate (function, or method inside a defprotocol), ONE SYMBOL PER FUNCTION AND ARITY: the
+# consecutive clauses of one name and arity (a bodiless head, guarded clauses, clauses without
+# parentheses) are one symbol that starts at the first clause; f/1 and f/2 are two symbols, and so is a
+# clause that is not adjacent to the earlier ones (pack/1 after unpack/1); @type/@typep/@opaque (type_alias),
+# @callback/@macrocallback (method), and a module attribute given a value that the compiler does not
+# read (constant).
+# A @callback, @macrocallback or @type is found however it is written: arguments or none (f :: r),
+# a return type on the following lines, and a trailing "when" clause (f(a) :: r when a: term).
+# Not recorded: defstruct, defexception, defoverridable, @spec, @doc, @moduledoc, @impl, @behaviour,
+# use/import/alias, test/describe/setup blocks, anonymous functions, and a function whose name is
+# generated with unquote (see KNOWN_GAPS.md).
+shop.ex	1	package	Shop.Cart
+shop.ex	4	constant	max_items
+shop.ex	5	constant	default_currency
+shop.ex	6	type_alias	t
+shop.ex	7	type_alias	internal
+shop.ex	8	type_alias	token
+shop.ex	9	method	checkout
+shop.ex	13	function	is_empty
+shop.ex	14	function	is_full
+shop.ex	20	function	new
+shop.ex	22	function	add
+shop.ex	30	function	total
+shop.ex	32	function	apply_discount
+shop.ex	37	function	with_cart
+shop.ex	44	function	private_macro
+shop.ex	46	function	count
+shop.ex	47	function	fetch
+shop.ex	49	function	handle_call
+shop.ex	57	function	init
+shop.ex	59	function	run
+shop.ex	65	function	with_default
+shop.ex	70	interface	Shop.Priced
+shop.ex	72	method	price
+shop.ex	73	method	currency
+shop.ex	76	class	Shop.Priced
+shop.ex	77	function	price
+shop.ex	78	function	currency
+shop.ex	81	package	Shop.Item
+shop.ex	85	package	Detail
+shop.ex	86	function	info
+shop.ex	91	function	to_string
+shop.ex	94	package	Shop.Helpers
+shop.ex	95	function	__using__
+shop.ex	101	function	format
+shop.ex	107	function	pack
+shop.ex	108	function	pack
+shop.ex	109	function	unpack
+shop.ex	110	function	pack
+worker.ex	1	package	Worker.Queue
+worker.ex	5	constant	timeout
+worker.ex	6	constant	names
+worker.ex	11	type_alias	id
+worker.ex	12	type_alias	result
+worker.ex	13	method	build
+worker.ex	19	function	start_link
+worker.ex	24	function	init
+worker.ex	29	function	handle_cast
+worker.ex	36	function	tick
+worker.ex	49	function	unless_empty
+worker.ex	57	function	a
+worker.ex	58	function	b
+worker.ex	61	function	test_only
+worker.ex	68	function	long_call
+worker.ex	73	package	Worker.Application
+worker.ex	77	function	start
+worker.ex	83	package	Worker.Behaviour
+worker.ex	84	method	perform
+worker.ex	85	method	name
+worker.ex	88	package	Worker.QueueTest
+callbacks.ex	1	package	Callbacks
+callbacks.ex	2	method	one
+callbacks.ex	4	method	two
+callbacks.ex	8	method	three
+callbacks.ex	13	method	four
+callbacks.ex	19	method	five
+callbacks.ex	21	method	six
+callbacks.ex	23	method	seven
+callbacks.ex	26	method	eight
+callbacks.ex	29	method	nine
+callbacks.ex	33	type_alias	pair
+callbacks.ex	36	type_alias	guarded
+callbacks.ex	39	function	local

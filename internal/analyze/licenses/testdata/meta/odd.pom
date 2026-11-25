@@ -1,0 +1,4 @@
+<project>
+  <groupId>org.example</groupId><artifactId>odd</artifactId><version>1.0</version>
+  <licenses><license><name>Acme Commercial Terms &amp; Conditions</name></license></licenses>
+</project>

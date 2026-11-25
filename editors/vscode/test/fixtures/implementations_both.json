@@ -1,0 +1,52 @@
+{
+  "is_error": false,
+  "result": {
+    "index_revision": 1,
+    "index_status": "ready",
+    "items": [
+      {
+        "confidence": "high",
+        "kind": "subtype",
+        "line": 321,
+        "name": "Dispatched",
+        "path": "internal/capability/impact/impact.go",
+        "source": "source_code",
+        "why": "implements or extends Impacted — defined in the same file"
+      },
+      {
+        "confidence": "medium",
+        "kind": "supertype",
+        "line": 254,
+        "name": "Symbol",
+        "path": "internal/capability/impact/impact.go",
+        "source": "source_code",
+        "why": "Impacted extends this — multiple matches among imports"
+      }
+    ],
+    "notes": [
+      "A type relationship is recorded only where the source states it (extends, implements, an embedded type) or a compiler index proved it. Structural typing — a Go type that satisfies an interface without naming it, a TypeScript object that happens to fit — is visible only after 'graphlume scip import'. Treat an empty list as 'none declared', not 'none exist'.",
+      "Note: 1 result(s) are medium or low confidence (heuristic inference with higher error rates). Pass min_confidence='high' to restrict to compiler-verified and high-precision edges."
+    ],
+    "provenance": {
+      "age_seconds": 623,
+      "built_at_sha": "6fadd51b76b45129669a667d0a93a45050be12ae",
+      "caveat": "This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.",
+      "head_matches_build": true,
+      "head_sha": "6fadd51b76b45129669a667d0a93a45050be12ae"
+    },
+    "summary": "Impacted (internal/capability/impact/impact.go:253): 1 implementing or extending it, 1 it implements or extends.",
+    "verdict": {
+      "counts": {
+        "high": 1,
+        "medium": 1
+      },
+      "next_step": "Act on the exact results first. Re-run with min_confidence=\"high\" to see only what GraphLume can defend.",
+      "signals": [
+        "0 of 2 results are proven; 0 are low confidence"
+      ],
+      "status": "mixed"
+    }
+  },
+  "text": "=== SYSTEM METADATA ===\nImpacted (internal/capability/impact/impact.go:253): 1 implementing or extending it, 1 it implements or extends.\nindex_revision: 1  status: ready\nnote: A type relationship is recorded only where the source states it (extends, implements, an embedded type) or a compiler index proved it. Structural typing — a Go type that satisfies an interface without naming it, a TypeScript object that happens to fit — is visible only after 'graphlume scip import'. Treat an empty list as 'none declared', not 'none exist'.\nnote: Note: 1 result(s) are medium or low confidence (heuristic inference with higher error rates). Pass min_confidence='high' to restrict to compiler-verified and high-precision edges.\nprovenance: This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.\nverdict: mixed (high=1 medium=1)\nverdict_signal: 0 of 2 results are proven; 0 are low confidence\nnext_step: Act on the exact results first. Re-run with min_confidence=\"high\" to see only what GraphLume can defend.\n\n=== INFERRED ===\n- subtype Dispatched  internal/capability/impact/impact.go:321  [confidence=high source=source_code]  (implements or extends Impacted — defined in the same file)\n- supertype Symbol  internal/capability/impact/impact.go:254  [confidence=medium source=source_code]  (Impacted extends this — multiple matches among imports)\n",
+  "tool": "implementations"
+}

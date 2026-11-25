@@ -1,0 +1,232 @@
+{
+  "name": "graphlume-vscode",
+  "displayName": "GraphLume",
+  "description": "Callers, impact, tests and implementations for the symbol under the cursor, read from the local GraphLume index. Every row carries its confidence tier.",
+  "version": "1.0.0",
+  "publisher": "graphlume",
+  "license": "Apache-2.0",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sutrakam/graphlume.git",
+    "directory": "editors/vscode"
+  },
+  "bugs": {
+    "url": "https://github.com/sutrakam/graphlume/issues"
+  },
+  "homepage": "https://github.com/sutrakam/graphlume/blob/main/docs/guides/editor-extension.md",
+  "engines": {
+    "vscode": "^1.125.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Other"
+  ],
+  "keywords": [
+    "graphlume",
+    "code graph",
+    "call graph",
+    "impact analysis",
+    "callers"
+  ],
+  "main": "./out/src/extension.js",
+  "extensionKind": [
+    "workspace"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "GraphLume runs the graphlume binary against the workspace folder, so it stays off until the folder is trusted."
+    },
+    "virtualWorkspaces": {
+      "supported": false,
+      "description": "GraphLume reads a local index through a local binary and needs files on disk."
+    }
+  },
+  "activationEvents": [
+    "onCommand:graphlume.showCallers",
+    "onCommand:graphlume.showImpact",
+    "onCommand:graphlume.showTests",
+    "onCommand:graphlume.showImplementations",
+    "onCommand:graphlume.indexWorkspace",
+    "onCommand:graphlume.refreshStatus",
+    "onCommand:graphlume.showStatus",
+    "onCommand:graphlume.showFullReport",
+    "workspaceContains:.graphlume",
+    "workspaceContains:.graphlume/index.db"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "graphlume.showCallers",
+        "title": "Show callers",
+        "category": "GraphLume"
+      },
+      {
+        "command": "graphlume.showImpact",
+        "title": "Show what this could break",
+        "category": "GraphLume"
+      },
+      {
+        "command": "graphlume.showTests",
+        "title": "Show tests that reach this",
+        "category": "GraphLume"
+      },
+      {
+        "command": "graphlume.showImplementations",
+        "title": "Show implementations",
+        "category": "GraphLume"
+      },
+      {
+        "command": "graphlume.indexWorkspace",
+        "title": "Index this workspace in a terminal",
+        "category": "GraphLume"
+      },
+      {
+        "command": "graphlume.refreshStatus",
+        "title": "Refresh index status",
+        "category": "GraphLume",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "graphlume.showStatus",
+        "title": "Show index status",
+        "category": "GraphLume"
+      },
+      {
+        "command": "graphlume.showFullReport",
+        "title": "Show the full tool report",
+        "category": "GraphLume",
+        "icon": "$(output)"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "graphlume.showCallers",
+          "when": "editorTextFocus && resourceScheme == file",
+          "group": "4_graphlume@1"
+        },
+        {
+          "command": "graphlume.showImpact",
+          "when": "editorTextFocus && resourceScheme == file",
+          "group": "4_graphlume@2"
+        },
+        {
+          "command": "graphlume.showTests",
+          "when": "editorTextFocus && resourceScheme == file",
+          "group": "4_graphlume@3"
+        },
+        {
+          "command": "graphlume.showImplementations",
+          "when": "editorTextFocus && resourceScheme == file",
+          "group": "4_graphlume@4"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "graphlume.showFullReport",
+          "when": "view == graphlume.results",
+          "group": "navigation@1"
+        },
+        {
+          "command": "graphlume.refreshStatus",
+          "when": "view == graphlume.results",
+          "group": "navigation@2"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "panel": [
+        {
+          "id": "graphlume",
+          "title": "GraphLume",
+          "icon": "media/graphlume.svg"
+        }
+      ]
+    },
+    "views": {
+      "graphlume": [
+        {
+          "id": "graphlume.results",
+          "name": "Results",
+          "icon": "media/graphlume.svg",
+          "contextualTitle": "GraphLume"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "graphlume.results",
+        "contents": "Put the cursor on a function, method or type and run a GraphLume command.\n[Show callers](command:graphlume.showCallers)\n[Show what this could break](command:graphlume.showImpact)\n[Show tests that reach this](command:graphlume.showTests)\n[Show implementations](command:graphlume.showImplementations)\nAnswers come from the local index in .graphlume/. Nothing leaves this machine."
+      }
+    ],
+    "taskDefinitions": [
+      {
+        "type": "graphlume",
+        "required": [
+          "step"
+        ],
+        "properties": {
+          "step": {
+            "type": "string",
+            "enum": [
+              "init",
+              "index",
+              "resolve"
+            ],
+            "description": "The graphlume subcommand this task runs."
+          }
+        }
+      }
+    ],
+    "configuration": {
+      "title": "GraphLume",
+      "properties": {
+        "graphlume.path": {
+          "type": "string",
+          "default": "graphlume",
+          "scope": "machine",
+          "markdownDescription": "Path to the `graphlume` binary, or a bare command name found on `PATH`. A leading `~/` is expanded. This is a machine setting on purpose: a workspace cannot change which program the extension runs."
+        },
+        "graphlume.codeLens.enabled": {
+          "type": "boolean",
+          "default": false,
+          "scope": "resource",
+          "markdownDescription": "Show the number of callers GraphLume found above function and type definitions. Off by default. Counts are looked up only for definitions scrolled into view, are cached until the index changes, and wait for typing to pause."
+        },
+        "graphlume.minConfidence": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "exact"
+          ],
+          "enumDescriptions": [
+            "Show everything GraphLume found, including weak inferences.",
+            "Hide low-confidence inferences.",
+            "Show only what GraphLume can defend: high and exact.",
+            "Show only bindings a compiler proved. Empty unless a SCIP index was imported."
+          ],
+          "default": "low",
+          "scope": "resource",
+          "markdownDescription": "Lowest confidence tier shown. It is sent to the tool as `min_confidence`, so the tool itself reports how many results it left out."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "test": "node --test \"out/test/**/*.test.js\"",
+    "vscode:prepublish": "npm run compile",
+    "package": "npx @vscode/vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "~1.125.0",
+    "typescript": "^5.9.0"
+  }
+}

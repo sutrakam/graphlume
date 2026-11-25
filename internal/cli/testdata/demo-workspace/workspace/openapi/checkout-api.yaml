@@ -1,0 +1,39 @@
+openapi: 3.0.3
+info:
+  title: checkout-api
+  version: 0.4.0
+paths:
+  /v1/payments:
+    post:
+      operationId: createPayment
+      summary: Create a payment
+      responses:
+        "201": { description: Created }
+  /v1/payments/{id}:
+    get:
+      operationId: getPayment
+      summary: Read a payment
+      responses:
+        "200": { description: OK }
+  /v1/payments/{id}/capture:
+    post:
+      operationId: capturePayment
+      summary: Capture an authorised payment
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema: { type: string }
+      responses:
+        "201": { description: Captured }
+  /v1/payments/{id}/refund:
+    post:
+      operationId: refundPayment
+      summary: Refund a captured payment
+      responses:
+        "200": { description: Refunded }
+  /healthz:
+    get:
+      operationId: health
+      summary: Liveness check
+      responses:
+        "200": { description: OK }

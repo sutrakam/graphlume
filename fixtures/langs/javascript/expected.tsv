@@ -1,0 +1,51 @@
+# JavaScript definitions. Rule, in addition to function and class declarations, methods, and `const f = () => {}` / `= function () {}` bindings at any depth:
+#  - CommonJS: `exports.x = function` / `module.exports.x = function` at the top of the file define the function x (class x for a class); the name is the property, not the function expression's own name;
+#  - `module.exports = function createApp() {}` defines createApp; an anonymous function, arrow or class there is named after the file (merge-options.js is mergeOptions, widget/index.js is widget); the entries of a top-level `module.exports = { ... }` are definitions when they are methods or hold a function;
+#  - `Foo.prototype.bar = function` defines the method bar owned by Foo, wherever it is written; `function Foo` is then a class;
+#  - `obj.name = function` is the method name owned by obj only as a top-level statement on an object the same file declares at its top level; inside a function, on `this`, or on an undeclared object it is an assignment and defines nothing;
+#  - `export const/let/var x = value` is a constant (variable for let and var); createContext(...) is a constant, exported or not; a component built by memo, forwardRef, lazy, observer, defineComponent or styled is a function; `const X = class {}` is a class;
+#  - a constant that is not exported, a call result that is not one of those, and an assignment that aliases another name (`exports.alias = exports.parse`) are not definitions.
+#  - a private `#name` method is a method and a private `#name` class field a field, named with the `#`; a public class field is not a definition.
+commonjs.js	11	function	parse
+commonjs.js	14	function	render
+commonjs.js	15	function	fromArrow
+commonjs.js	16	class	Router
+commonjs.js	21	method	init
+commonjs.js	22	method	handle
+commonjs.js	23	method	send
+commonjs.js	24	method	type
+commonjs.js	24	method	contentType
+commonjs.js	25	method	reset
+commonjs.js	29	class	Widget
+commonjs.js	30	method	show
+commonjs.js	31	method	hide
+commonjs.js	34	function	wrapper
+commonjs.js	38	method	spin
+commonjs.js	40	method	beta
+commonjs.js	40	function	gamma
+commonjs.js	40	function	delta
+esm.js	2	constant	LIMIT
+esm.js	3	variable	counter
+esm.js	4	variable	legacy
+esm.js	5	constant	settings
+esm.js	6	function	Banner
+esm.js	7	constant	Ctx
+esm.js	8	function	Lazy
+esm.js	9	function	run
+esm.js	10	class	Plain
+esm.js	13	function	load
+esm.js	14	function	inner
+esm.js	19	class	Store
+esm.js	20	method	get
+merge-options.js	1	function	mergeOptions
+named.js	1	function	helper
+named.js	2	function	createApp
+page.jsx	3	function	Page
+page.jsx	7	function	Shell
+widget/index.js	1	class	widget
+widget/index.js	2	method	render
+esm.js	23	constant	shared
+esm.js	27	class	Vault
+esm.js	28	field	#secret
+esm.js	30	method	#check
+esm.js	31	method	read

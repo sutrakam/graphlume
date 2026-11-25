@@ -1,0 +1,70 @@
+{
+  "is_error": false,
+  "result": {
+    "index_revision": 1,
+    "index_status": "ready",
+    "items": [
+      {
+        "confidence": "high",
+        "kind": "direct",
+        "line": 254,
+        "name": "TestParseToolArgTypes",
+        "path": "internal/cli/structure_test.go",
+        "why": "calls the target directly"
+      },
+      {
+        "confidence": "high",
+        "kind": "direct",
+        "line": 323,
+        "name": "newToolCallCmd",
+        "path": "internal/cli/tool.go",
+        "why": "calls the target directly"
+      },
+      {
+        "confidence": "high",
+        "kind": "indirect",
+        "name": "newToolCmd",
+        "path": "internal/cli/tool.go",
+        "why": "reaches the target at depth 2 (confidence is the weakest link on that path)"
+      },
+      {
+        "confidence": "high",
+        "kind": "indirect",
+        "name": "NewRoot",
+        "path": "internal/cli/root.go",
+        "why": "reaches the target at depth 3 (confidence is the weakest link on that path)"
+      }
+    ],
+    "notes": [
+      "Risk = score = sum(factors), clamped to 0..100; level = low below 25, moderate below 60, high at or above 60",
+      "  public_api (+0): Target is unexported, so its blast radius is bounded by this repository.",
+      "  direct_callers (+10): 2 symbol(s) reference the target directly (depth 1). Capped at 25 points: caller count grows faster than risk does.",
+      "  indirect_reach (+0): 2 symbol(s) are reachable at depth 2 or more. Weighted far below direct callers because a long path is a weaker claim.",
+      "  observed_tests (+-10): 1 of the impacted symbols are test code, so a change here is at least partly guarded. This is reachability, not a coverage measurement.",
+      "  truncated_traversal (+10): The traversal hit a bound, so the counts above are floors. The score is raised because an unmeasured region is a risk, not an absence of one.",
+      "Certainty low — 4 of 4 impacted symbols were reached along a path whose weakest edge is high or exact; 0 were reached only through medium- or low-confidence edges. Reference resolution for this run: 82.1% of the references that name something this index defines. The traversal was also truncated, so this mix describes only the part that was explored.. Certainty is a SEPARATE axis from risk: how much could break, and how much to trust that, are different questions.",
+      "NOT VISIBLE (unexpanded_frontier): The traversal stopped before exhausting the reachable set (depth limit 3 reached, and 1 node(s) at the limit were not expanded). Symbols beyond that boundary are affected-status unknown, not unaffected.",
+      "NOT VISIBLE (unresolved_references): 32615 reference(s) in this run were never bound to a definition: 28163 matched no definition in this index at all — mostly calls into libraries, though some are code this index did not cover — 4452 were too ambiguous to choose between, and 0 are still pending. Any one of them could be a use of this symbol that does not appear above.",
+      "This is a LOWER BOUND. Static analysis cannot see reflection, dynamic dispatch or runtime wiring, and unresolved references are listed above. Do not treat an empty result as proof that nothing breaks."
+    ],
+    "provenance": {
+      "age_seconds": 35,
+      "built_at_sha": "6fadd51b76b45129669a667d0a93a45050be12ae",
+      "caveat": "This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.",
+      "head_matches_build": true,
+      "head_sha": "6fadd51b76b45129669a667d0a93a45050be12ae"
+    },
+    "summary": "parseToolArg: 2 direct, 2 indirect. Risk low (score 10).",
+    "truncated": true,
+    "truncated_reason": "depth limit 3 reached, and 1 node(s) at the limit were not expanded",
+    "verdict": {
+      "counts": {
+        "high": 4
+      },
+      "next_step": "No result fell below high confidence. Act on these, but verify before deleting anything.",
+      "status": "strong"
+    }
+  },
+  "text": "=== SYSTEM METADATA ===\nparseToolArg: 2 direct, 2 indirect. Risk low (score 10).\nindex_revision: 1  status: ready\ntruncated: depth limit 3 reached, and 1 node(s) at the limit were not expanded\nnote: Risk = score = sum(factors), clamped to 0..100; level = low below 25, moderate below 60, high at or above 60\nnote:   public_api (+0): Target is unexported, so its blast radius is bounded by this repository.\nnote:   direct_callers (+10): 2 symbol(s) reference the target directly (depth 1). Capped at 25 points: caller count grows faster than risk does.\nnote:   indirect_reach (+0): 2 symbol(s) are reachable at depth 2 or more. Weighted far below direct callers because a long path is a weaker claim.\nnote:   observed_tests (+-10): 1 of the impacted symbols are test code, so a change here is at least partly guarded. This is reachability, not a coverage measurement.\nnote:   truncated_traversal (+10): The traversal hit a bound, so the counts above are floors. The score is raised because an unmeasured region is a risk, not an absence of one.\nnote: Certainty low — 4 of 4 impacted symbols were reached along a path whose weakest edge is high or exact; 0 were reached only through medium- or low-confidence edges. Reference resolution for this run: 82.1% of the references that name something this index defines. The traversal was also truncated, so this mix describes only the part that was explored.. Certainty is a SEPARATE axis from risk: how much could break, and how much to trust that, are different questions.\nnote: NOT VISIBLE (unexpanded_frontier): The traversal stopped before exhausting the reachable set (depth limit 3 reached, and 1 node(s) at the limit were not expanded). Symbols beyond that boundary are affected-status unknown, not unaffected.\nnote: NOT VISIBLE (unresolved_references): 32615 reference(s) in this run were never bound to a definition: 28163 matched no definition in this index at all — mostly calls into libraries, though some are code this index did not cover — 4452 were too ambiguous to choose between, and 0 are still pending. Any one of them could be a use of this symbol that does not appear above.\nnote: This is a LOWER BOUND. Static analysis cannot see reflection, dynamic dispatch or runtime wiring, and unresolved references are listed above. Do not treat an empty result as proof that nothing breaks.\nprovenance: This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.\nverdict: strong (high=4)\nnext_step: No result fell below high confidence. Act on these, but verify before deleting anything.\n\n=== INFERRED ===\n- direct TestParseToolArgTypes  internal/cli/structure_test.go:254  [confidence=high]  (calls the target directly)\n- direct newToolCallCmd  internal/cli/tool.go:323  [confidence=high]  (calls the target directly)\n- indirect newToolCmd  internal/cli/tool.go  [confidence=high]  (reaches the target at depth 2 (confidence is the weakest link on that path))\n- indirect NewRoot  internal/cli/root.go  [confidence=high]  (reaches the target at depth 3 (confidence is the weakest link on that path))\n",
+  "tool": "impact"
+}

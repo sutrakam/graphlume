@@ -1,0 +1,17 @@
+{
+  "project": "initonly",
+  "index_path": "/work/project/.graphlume/index.db",
+  "index_status": "empty",
+  "schema_version": 1,
+  "files": 0,
+  "symbols": 0,
+  "relationships": 0,
+  "parse_failures": 0,
+  "partial_parses": 0,
+  "index_size_bytes": 360448,
+  "accuracy_mode": "auto",
+  "mcp_profile": "minimal",
+  "capabilities": [
+    "code"
+  ]
+}

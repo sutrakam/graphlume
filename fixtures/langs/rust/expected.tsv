@@ -1,0 +1,23 @@
+# Rust: fn (free, in an impl, a trait signature), struct and enum (listed as classes), trait (interface), const and static (constant; static mut is a variable), type aliases including
+# associated types in a trait and in an impl, inline `mod name { ... }` (listed as a package), and macro_rules! (listed as a function).
+# Not definitions: `mod external;` (a file, not a body), a use, a call, a macro invocation (format!, vec!, print_error!), a field, a local binding.
+sample.rs	3	constant	GLOBAL
+sample.rs	4	variable	COUNTER
+sample.rs	5	constant	LIMIT
+sample.rs	6	type_alias	Alias
+sample.rs	8	package	inline
+sample.rs	9	function	helper
+sample.rs	10	package	deep
+sample.rs	11	function	deeper
+sample.rs	17	function	print_error
+sample.rs	21	interface	Shape
+sample.rs	22	type_alias	Output
+sample.rs	23	constant	SIDES
+sample.rs	24	function	area
+sample.rs	27	class	Sq
+sample.rs	30	type_alias	Output
+sample.rs	31	constant	SIDES
+sample.rs	32	function	area
+sample.rs	36	type_alias	Item
+sample.rs	37	function	next
+sample.rs	40	function	main

@@ -1,0 +1,15 @@
+# Settings for running graphlume on this repository itself (the CI gate and the
+# self-index checks). Only the project's own source is audited: documentation,
+# workflow files and sample/fixture trees are not code with callers to bind.
+index:
+  exclude:
+    - "docs/**"
+    - ".github/**"
+    - "fixtures/**"
+    - "**/testdata/**"
+    # The VS Code extension is a separate TypeScript package with its own
+    # tests. Nearly every call in it goes into the editor API, which this
+    # index cannot bind, so indexing it filled the capped blindspot report
+    # with those and pushed the Go findings out.
+    - "editors/**"
+    - "**/*.md"

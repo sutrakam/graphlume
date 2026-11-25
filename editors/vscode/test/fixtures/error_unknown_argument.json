@@ -1,0 +1,6 @@
+{
+  "is_error": true,
+  "result": null,
+  "text": "validating \"arguments\": validating root: unexpected additional properties [\"line\" \"path\"]",
+  "tool": "impact"
+}

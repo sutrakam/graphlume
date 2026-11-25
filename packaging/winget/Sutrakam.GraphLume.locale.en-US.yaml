@@ -1,0 +1,34 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.28.0.schema.json
+
+PackageIdentifier: Sutrakam.GraphLume
+PackageVersion: 1.0.0
+PackageLocale: en-US
+Publisher: Sutrakam
+PublisherUrl: https://github.com/sutrakam
+PublisherSupportUrl: https://github.com/sutrakam/graphlume/issues
+PackageName: GraphLume
+PackageUrl: https://github.com/sutrakam/graphlume
+License: Apache-2.0
+LicenseUrl: https://github.com/sutrakam/graphlume/blob/main/LICENSE
+Copyright: Copyright 2026 The GraphLume Authors
+ShortDescription: Deterministic code intelligence and change safety for AI coding agents.
+Description: |-
+  GraphLume indexes a repository into a local SQLite code graph of symbols,
+  references, APIs, database access, tests, configuration and Git history, and
+  serves it to AI coding agents over MCP, a CLI and REST. Every relationship
+  carries a confidence level and the source location that justifies it. It
+  ships as a single binary with no runtime dependencies and keeps its index on
+  the local disk.
+Moniker: graphlume
+Tags:
+- ai
+- cli
+- code-graph
+- code-intelligence
+- developer-tools
+- mcp
+- model-context-protocol
+- static-analysis
+ReleaseNotesUrl: https://github.com/sutrakam/graphlume/releases/tag/v1.0.0
+ManifestType: defaultLocale
+ManifestVersion: 1.28.0

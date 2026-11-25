@@ -1,0 +1,95 @@
+/dts-v1/;
+
+#include "soc.dtsi"
+/include/ "extra.dtsi"
+
+/memreserve/ 0x10000000 0x4000;
+
+/ {
+	model = "Example Board";
+	compatible = "example,board";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	aliases {
+		serial0 = &uart0;
+		eth0 = &ethernet;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x20000000>;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu0: cpu@0 {
+			device_type = "cpu";
+			reg = <0>;
+			clocks = <&osc 0>;
+		};
+
+		cpu1: cpu@1 {
+			device_type = "cpu";
+			reg = <1>;
+		};
+	};
+
+	osc: oscillator {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24000000>;
+	};
+
+	soc {
+		compatible = "simple-bus";
+		ranges;
+
+		uart0: serial@101f0000 {
+			compatible = "ns16550a";
+			reg = <0x101f0000 0x1000>;
+			interrupts = <1>;
+			status = "okay";
+		};
+
+		ethernet: ethernet@10100000 {
+			compatible = "example,eth";
+			reg = <0x10100000 0x1000>;
+
+			phy0: ethernet-phy@1 {
+				reg = <1>;
+			};
+		};
+
+		gpio: gpio-controller@10120000 {
+			gpio-controller;
+			#gpio-cells = <2>;
+			reg = <0x10120000 0x1000>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led-heartbeat {
+			gpios = <&gpio 4 0>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+};
+
+&uart0 {
+	status = "disabled";
+};
+
+&{/soc/ethernet@10100000} {
+	local-mac-address = [00 11 22 33 44 55];
+};
+
+/delete-node/ &phy0;

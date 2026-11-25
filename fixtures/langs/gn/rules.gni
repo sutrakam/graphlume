@@ -1,0 +1,51 @@
+# Build rules shared by the tree.
+import("//build/config/python.gni")
+
+declare_args() {
+  generated_dir = "gen"
+  verbose_rules = false
+}
+
+rule_version = 2
+
+template("proto_library") {
+  forward_variables_from(invoker, [ "sources", "deps" ])
+  action(target_name + "_gen") {
+    script = "//tools/protoc.py"
+    args = rebase_path(sources, root_build_dir)
+    outputs = []
+  }
+  source_set(target_name) {
+    deps = [ ":" + target_name + "_gen" ]
+  }
+}
+
+template("embed_files") {
+  assert(defined(invoker.files), "files is required")
+  copy(target_name) {
+    sources = invoker.files
+    outputs = [ "$root_out_dir/{{source_file_part}}" ]
+  }
+}
+
+proto_library("api_protos") {
+  sources = [ "api.proto" ]
+}
+
+set_defaults("proto_library") {
+  deps = []
+}
+
+toolchain("clang_arm") {
+  tool("cc") {
+    command = "clang -c {{source}}"
+  }
+}
+
+pool("link_pool") {
+  depth = 4
+}
+
+config("rules_config") {
+  defines = [ "RULES=1" ]
+}

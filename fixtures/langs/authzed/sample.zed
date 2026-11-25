@@ -1,0 +1,62 @@
+/** user is a person who can sign in. */
+definition user {}
+
+definition platform {
+    relation administrator: user
+    relation auditor: user | service
+
+    permission super_admin = administrator
+    permission audit = administrator + auditor
+}
+
+/** a service account */
+definition service {
+    relation owner: user
+    permission manage = owner
+}
+
+definition organization {
+    relation platform: platform
+    relation admin: user
+    relation member: user | team#member
+    relation billing_contact: user with only_business_hours
+
+    permission administrate = admin + platform->super_admin
+    permission view = member + admin
+    permission can_bill = billing_contact & view
+    permission read_only = view - admin
+}
+
+definition team {
+    relation parent: organization
+    relation direct_member: user | team#member
+
+    permission member = direct_member + parent->admin
+}
+
+definition document {
+    relation owner: user
+    relation org: organization
+    relation reader: user | user:* | team#member
+    relation writer: user
+
+    permission edit = writer + owner + org->administrate
+    permission view = reader + edit
+    permission comment = view & org->member
+}
+
+caveat only_business_hours(current_hour int, start int, end int) {
+    current_hour >= start && current_hour < end
+}
+
+caveat ip_allowlist(ip string, allowed list<string>) {
+    ip in allowed
+}
+
+definition project/folder {
+    relation parent: project/folder
+    relation viewer : user
+    relation editor : user | team#member
+
+    permission view = viewer + parent->view
+}

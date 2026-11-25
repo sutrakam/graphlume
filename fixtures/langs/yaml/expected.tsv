@@ -1,0 +1,17 @@
+# Rule: an anchor (&name) is a variable named without the ampersand. Aliases
+# (*name) and merge keys (<<: *name) are uses. Keys are NOT definitions, at any
+# depth: the configuration analyser already reports every key as a
+# configuration symbol, and names like name, image or version occur in nearly
+# every file. An anchor is declared once and referred to by name.
+anchors.yaml	3	variable	defaults
+anchors.yaml	16	variable	retry
+anchors.yaml	23	variable	nightly
+anchors.yaml	28	variable	ports
+anchors.yaml	29	variable	timeout
+anchors.yaml	30	variable	greeting
+anchors.yaml	31	variable	empty_anchor
+anchors.yaml	42	variable	web_service
+anchors.yaml	48	variable	first_doc_anchor
+anchors.yaml	52	variable	second_doc_anchor
+compose.yaml	2	variable	default-logging
+compose.yaml	7	variable	common-env

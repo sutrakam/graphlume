@@ -1,0 +1,20 @@
+{
+  "is_error": false,
+  "result": {
+    "index_revision": 1,
+    "index_status": "ready",
+    "notes": [
+      "Not found. The name must match exactly; use search for partial matches."
+    ],
+    "provenance": {
+      "age_seconds": 624,
+      "built_at_sha": "6fadd51b76b45129669a667d0a93a45050be12ae",
+      "caveat": "This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.",
+      "head_matches_build": true,
+      "head_sha": "6fadd51b76b45129669a667d0a93a45050be12ae"
+    },
+    "summary": "0 definition(s) named \"NoSuchSymbolAnywhere\"."
+  },
+  "text": "=== SYSTEM METADATA ===\n0 definition(s) named \"NoSuchSymbolAnywhere\".\nindex_revision: 1  status: ready\nnote: Not found. The name must match exactly; use search for partial matches.\nprovenance: This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.\n",
+  "tool": "symbol"
+}

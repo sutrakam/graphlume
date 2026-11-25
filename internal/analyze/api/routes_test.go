@@ -1,0 +1,1296 @@
+package api
+
+import (
+	"os"
+	"strings"
+	"testing"
+
+	"github.com/sutrakam/graphlume/pkg/model"
+)
+
+// Route extraction is framework-specific, so the tests are too: one case per
+// convention, written the way that framework is actually written, plus a shared
+// body of inputs that must NOT produce routes.
+
+func TestExtractSpring(t *testing.T) {
+	src := `package com.pay.controller;
+
+@RestController
+@RequestMapping("/payment")
+public class CallbackController {
+
+    @PostMapping("/callback")
+    public ResponseEntity<Void> handleCallback(@RequestBody CallbackRequest request) {
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/status/{id}")
+    public Transaction status(@PathVariable String id) { return null; }
+
+    @RequestMapping(value = "/legacy", method = RequestMethod.PUT)
+    public void legacy() {}
+}`
+
+	routes := Extract("CallbackController.java", []byte(src))
+	assertRoute(t, routes, "POST /payment/callback", "handleCallback")
+	assertRoute(t, routes, "GET /payment/status/{id}", "status")
+	assertRoute(t, routes, "PUT /payment/legacy", "legacy")
+
+	if len(routes) != 3 {
+		t.Errorf("got %d routes, want 3: %v", len(routes), signatures(routes))
+	}
+}
+
+// TestSpringClassPrefixIsApplied is the one that catches a route that does not
+// exist. Reporting `/callback` for a controller mapped at `/payment` names an
+// endpoint no client can call.
+func TestSpringClassPrefixIsApplied(t *testing.T) {
+	src := `@RestController
+@RequestMapping("/payment")
+public class C {
+    @PostMapping("/callback")
+    public void handle() {}
+}`
+	routes := Extract("C.java", []byte(src))
+	if len(routes) != 1 {
+		t.Fatalf("want 1 route, got %v", signatures(routes))
+	}
+	if routes[0].Path != "/payment/callback" {
+		t.Errorf("path = %q, want /payment/callback — the class prefix was dropped", routes[0].Path)
+	}
+}
+
+func TestExtractSpringMultiline(t *testing.T) {
+	src := `@RestController
+@RequestMapping(
+    value = "/payment",
+    produces = "application/json"
+)
+public class PaymentController {
+    @PostMapping(
+        value = "/device-model",
+        consumes = "application/json"
+    )
+    public ResponseEntity<Void> changeModel(
+        @RequestBody ModelRequest req
+    ) {
+        return ResponseEntity.ok().build();
+    }
+}`
+	routes := Extract("PaymentController.java", []byte(src))
+	assertRoute(t, routes, "POST /payment/device-model", "changeModel")
+	if len(routes) != 1 {
+		t.Errorf("got %d routes, want 1: %v", len(routes), signatures(routes))
+	}
+}
+
+func TestExtractGo(t *testing.T) {
+	src := `package main
+
+func main() {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/health", healthHandler)
+	r.Get("/users/{id}", getUser)
+	r.Post("/users", createUser)
+	// r.Delete("/commented", nope)
+	router.Handle("/legacy", legacyHandler).Methods("PUT")
+}`
+	routes := Extract("main.go", []byte(src))
+	assertRoute(t, routes, "ANY /health", "healthHandler")
+	assertRoute(t, routes, "GET /users/{id}", "getUser")
+	assertRoute(t, routes, "POST /users", "createUser")
+	assertRoute(t, routes, "PUT /legacy", "legacyHandler")
+
+	for _, r := range routes {
+		if r.Path == "/commented" {
+			t.Error("a commented-out registration was reported as a live route")
+		}
+	}
+}
+
+// TestExtractGoMethodPatterns: Go 1.22's ServeMux takes the method inside the
+// pattern. Reading "GET /api/health" as a path made every such route an ANY
+// route on a path no client could call.
+func TestExtractGoMethodPatterns(t *testing.T) {
+	src := `package main
+
+func routes(mux *http.ServeMux) {
+	mux.HandleFunc("GET /api/health", s.handleHealth)
+	mux.HandleFunc("POST /api/reindex", s.handleReindex)
+	mux.HandleFunc("/assets/", s.handleAssets)
+	mux.HandleFunc("BREW /tea", teapot)
+}`
+	routes := Extract("main.go", []byte(src))
+	assertRoute(t, routes, "GET /api/health", "handleHealth")
+	assertRoute(t, routes, "POST /api/reindex", "handleReindex")
+	assertRoute(t, routes, "ANY /assets/", "handleAssets")
+	for _, r := range routes {
+		if strings.Contains(r.Path, " ") {
+			t.Errorf("a method leaked into the path: %q", r.Path)
+		}
+		if r.Path == "/tea" {
+			t.Errorf("a verb the package does not report was widened to ANY: %s %s", r.Method, r.Path)
+		}
+	}
+}
+
+func TestExtractPython(t *testing.T) {
+	src := `from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/items/{item_id}")
+async def read_item(item_id: int):
+    return {}
+
+@app.post("/items")
+def create_item(item: Item):
+    return {}
+
+@app.route("/legacy", methods=["POST", "PUT"])
+def legacy():
+    return ""
+
+@app.route("/flask-default")
+def flask_default():
+    return ""
+`
+	routes := Extract("main.py", []byte(src))
+	assertRoute(t, routes, "GET /items/{item_id}", "read_item")
+	assertRoute(t, routes, "POST /items", "create_item")
+	assertRoute(t, routes, "POST /legacy", "legacy")
+	assertRoute(t, routes, "PUT /legacy", "legacy")
+	// Flask's documented default when methods= is absent is GET. That is a
+	// fact about the framework, not a guess about the code.
+	assertRoute(t, routes, "GET /flask-default", "flask_default")
+}
+
+func TestExtractFastAPIMultilineDecorator(t *testing.T) {
+	src := `from fastapi import APIRouter
+
+router = APIRouter()
+
+@router.patch(
+    "/{task_id}/device-model",
+    response_model=TaskResponse,
+    summary="Change the device model of an open installation task",
+    dependencies=[Depends(require_roles(_ROLES))],
+)
+async def change_task_device_model(
+    task_id: int,
+    body: DeviceModelChangeIn,
+):
+    pass
+`
+	routes := Extract("task_device_model.py", []byte(src))
+	assertRoute(t, routes, "PATCH /{task_id}/device-model", "change_task_device_model")
+}
+
+// TestExtractFastAPIEmptyPathIsTheRouterRoot. @router.get("") is served at the
+// prefix its router is mounted under; it was dropped for having no path, so a
+// list-and-create pair mounted from another file went missing.
+func TestExtractFastAPIEmptyPathIsTheRouterRoot(t *testing.T) {
+	src := `router = APIRouter()
+scoped = APIRouter(prefix="/widgets")
+
+@router.get(
+    "",
+    response_model=WidgetList,
+)
+async def list_widgets():
+    pass
+
+@router.post('', status_code=201)
+async def create_widget():
+    pass
+
+@scoped.get("")
+async def list_scoped():
+    pass
+
+@router.get(response_model=Other)
+async def no_path_at_all():
+    pass
+`
+	routes := Extract("widgets.py", []byte(src))
+	assertRoute(t, routes, "GET /", "list_widgets")
+	assertRoute(t, routes, "POST /", "create_widget")
+	assertRoute(t, routes, "GET /widgets", "list_scoped")
+	if len(routes) != 3 {
+		t.Errorf("want 3 routes, got %v", signatures(routes))
+	}
+}
+
+func TestExtractExpress(t *testing.T) {
+	src := `const app = express();
+
+app.get('/users', listUsers);
+app.post("/users", createUser);
+router.delete('/users/:id', removeUser);
+app.all('/any', anyHandler);
+// app.get('/commented', nope);
+`
+	routes := Extract("server.js", []byte(src))
+	assertRoute(t, routes, "GET /users", "listUsers")
+	assertRoute(t, routes, "POST /users", "createUser")
+	assertRoute(t, routes, "DELETE /users/:id", "removeUser")
+	assertRoute(t, routes, "ANY /any", "anyHandler")
+
+	for _, r := range routes {
+		if strings.Contains(r.Path, "commented") {
+			t.Error("commented-out route reported")
+		}
+	}
+}
+
+func TestExtractExpressMultiline(t *testing.T) {
+	src := `const express = require('express');
+const app = express();
+
+app.post(
+    '/api/v1/orders',
+    authMiddleware,
+    orderHandler
+);
+
+router.patch(
+    "/tasks/:task_id/device-model",
+    validateTask,
+    changeDeviceModel
+);
+`
+	routes := Extract("routes.js", []byte(src))
+	assertRoute(t, routes, "POST /api/v1/orders", "orderHandler")
+	assertRoute(t, routes, "PATCH /tasks/:task_id/device-model", "changeDeviceModel")
+	if len(routes) != 2 {
+		t.Errorf("got %d routes, want 2: %v", len(routes), signatures(routes))
+	}
+}
+
+// TestExtractNeverInventsEndpoints is the counterpart to the SQL recogniser's
+// no-fabricated-tables test, and matters for the same reason: an endpoint in an
+// API surface report is read as a route that exists.
+func TestExtractNeverInventsEndpoints(t *testing.T) {
+	cases := []struct{ path, src string }{
+		{"log.go", `log.Printf("GET /users returned %d", code)`},
+		{"doc.go", `// The service exposes GET /users and POST /users.`},
+		{"client.go", `resp, err := http.Get("https://api.example.com/users")`},
+		{"c.java", `logger.info("POST /payment/callback failed");`},
+		{"s.py", `print("GET /items")`},
+		{"a.js", `console.log('app.get("/fake")');`},
+		{"README.md", `app.get('/not-code', handler)`}, // not a source file
+	}
+	for _, c := range cases {
+		if routes := Extract(c.path, []byte(c.src)); len(routes) > 0 {
+			t.Errorf("%s: invented %v from %q", c.path, signatures(routes), c.src)
+		}
+	}
+}
+
+// TestHandlerIsNeverGuessed. An endpoint whose handler cannot be determined is
+// still a real endpoint; naming the wrong function would send a reader to the
+// wrong place, which is worse than naming none.
+func TestHandlerIsNeverGuessed(t *testing.T) {
+	src := `@RestController
+public class C {
+    @PostMapping("/orphan")
+
+    private static final String UNRELATED = "x";
+
+    public void notTheHandler() {}
+}`
+	routes := Extract("C.java", []byte(src))
+	if len(routes) != 1 {
+		t.Fatalf("want 1 route, got %v", signatures(routes))
+	}
+	if routes[0].Handler == "notTheHandler" {
+		t.Error("attached the route to a function it does not annotate")
+	}
+}
+
+func TestExtractIgnoresUnknownLanguages(t *testing.T) {
+	for _, path := range []string{"a.rb", "b.php", "c.txt", "d.md", "e"} {
+		if r := Extract(path, []byte(`app.get('/x', h)`)); r != nil {
+			t.Errorf("%s produced routes from an unsupported language: %v", path, signatures(r))
+		}
+	}
+}
+
+// TestConfidenceIsNeverExact. Exact is reserved for facts a compiler proved,
+// and no compiler checked that a string literal is a live route.
+func TestConfidenceIsNeverExact(t *testing.T) {
+	srcs := map[string]string{
+		"C.java":    "@RestController\npublic class C {\n@GetMapping(\"/a\")\npublic void a() {}\n}",
+		"m.go":      `mux.HandleFunc("/a", h)`,
+		"m.py":      "@app.get(\"/a\")\ndef a():\n    pass",
+		"server.js": `app.get('/a', h);`,
+	}
+	for path, src := range srcs {
+		for _, r := range Extract(path, []byte(src)) {
+			if r.Confidence == model.ConfidenceExact {
+				t.Errorf("%s: route %q claims exact confidence", path, r.Signature())
+			}
+			if r.Confidence == "" {
+				t.Errorf("%s: route %q carries no confidence", path, r.Signature())
+			}
+		}
+	}
+}
+
+// TestExtractOnTheRealFixture drives the payment-platform controller the golden
+// task is written against, so the extractor is exercised on committed source
+// rather than only on strings in this file.
+func TestExtractOnTheRealFixture(t *testing.T) {
+	const path = "../../../fixtures/payment-platform/src/main/java/com/pay/controller/CallbackController.java"
+	src, err := os.ReadFile(path)
+	if err != nil {
+		t.Skipf("fixture unavailable: %v", err)
+	}
+	routes := Extract(path, src)
+	assertRoute(t, routes, "POST /payment/callback", "handleCallback")
+}
+
+func TestExtractIsSafeOnHostileInput(t *testing.T) {
+	for _, src := range []string{
+		strings.Repeat("@GetMapping(\"", 10000),
+		strings.Repeat("app.get('", 10000),
+		"\x00\x01\x02",
+		strings.Repeat("\n", 100000),
+		"@RequestMapping(" + strings.Repeat("(", 5000),
+	} {
+		for _, path := range []string{"a.java", "a.go", "a.py", "a.js"} {
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						t.Errorf("panic on %s with %.30q: %v", path, src, r)
+					}
+				}()
+				_ = Extract(path, []byte(src))
+			}()
+		}
+	}
+}
+
+// ---------------------------------------------------------------- helpers
+
+func assertRoute(t *testing.T, routes []Route, signature, handler string) {
+	t.Helper()
+	for _, r := range routes {
+		if r.Signature() != signature {
+			continue
+		}
+		if handler != "" && r.Handler != handler {
+			t.Errorf("%s: handler = %q, want %q", signature, r.Handler, handler)
+		}
+		return
+	}
+	t.Errorf("route %q not found; got %v", signature, signatures(routes))
+}
+
+func signatures(routes []Route) []string {
+	out := make([]string, 0, len(routes))
+	for _, r := range routes {
+		out = append(out, r.Signature()+" -> "+r.Handler)
+	}
+	return out
+}
+
+// A .vue file's <script> block is JavaScript. ExtractCalls returned nil for
+// it because languageOf did not name the extension, so every fetch and axios
+// call in a single-file component was invisible to the API surface.
+//
+// The client call (fetch, axios) is found by ExtractCalls in clients.go, not
+// by Extract in this file: Extract only recognises server-side route
+// registrations (app.get, router.post, ...), and this component declares
+// none, so Extract legitimately returns nil for it both before and after
+// this fix — that is correct behaviour, not the bug. Both functions share
+// languageOf, so naming the extension there fixes the real gap in
+// ExtractCalls, which is what this test verifies.
+func TestExtractReadsSingleFileComponents(t *testing.T) {
+	src := []byte(`<template>
+  <div>{{ user.name }}</div>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+
+const user = ref(null)
+
+async function load() {
+  const res = await fetch('/api/users/me')
+  user.value = await res.json()
+}
+</script>
+
+<style scoped>
+div { color: red; }
+</style>
+`)
+
+	for _, path := range []string{"App.vue", "App.svelte", "App.astro"} {
+		t.Run(path, func(t *testing.T) {
+			got := ExtractCalls(path, src)
+			if len(got) == 0 {
+				t.Fatalf("ExtractCalls(%s) returned nothing; the <script> block is "+
+					"JavaScript and calls /api/users/me", path)
+			}
+			var found bool
+			for _, c := range got {
+				if strings.Contains(c.Path, "/api/users/me") {
+					found = true
+				}
+			}
+			if !found {
+				t.Errorf("ExtractCalls(%s) = %+v, want a call for /api/users/me", path, got)
+			}
+
+			// Extract (server routes) correctly finds nothing here: the
+			// component declares no app.METHOD/router.METHOD registration.
+			if routes := Extract(path, src); len(routes) != 0 {
+				t.Errorf("Extract(%s) = %+v, want no server routes", path, routes)
+			}
+		})
+	}
+}
+
+func TestLanguageOfNamesTheComponentExtensions(t *testing.T) {
+	for _, path := range []string{"a.vue", "a.svelte", "a.astro"} {
+		if got := languageOf(path); got != "js" {
+			t.Errorf("languageOf(%q) = %q, want js", path, got)
+		}
+	}
+}
+
+// A single-file component's <template> block is full of href/src attributes
+// that look like paths but are not framework calls. Neither Extract nor
+// ExtractCalls may turn them into routes/calls: extractExpress only matches
+// app.METHOD(...) / router.METHOD(...) calls, and the JS client scanner only
+// matches fetch(...) / axios.METHOD(...) calls, so a bare href/src attribute
+// produces nothing from either.
+func TestExtractIgnoresTemplateAttributesInComponents(t *testing.T) {
+	src := []byte(`<template>
+  <a href="/api/not-a-call">link</a>
+  <img src="/api/also-not-a-call" />
+</template>
+<script setup>
+</script>
+`)
+	for _, path := range []string{"Decoy.vue", "Decoy.svelte", "Decoy.astro"} {
+		t.Run(path, func(t *testing.T) {
+			if got := Extract(path, src); len(got) != 0 {
+				t.Errorf("Extract(%s) = %+v, want no routes from template attributes", path, got)
+			}
+			if got := ExtractCalls(path, src); len(got) != 0 {
+				t.Errorf("ExtractCalls(%s) = %+v, want no calls from template attributes", path, got)
+			}
+		})
+	}
+}
+
+func TestExtractDjango(t *testing.T) {
+	src := `from django.urls import path, re_path, include
+from . import views
+
+urlpatterns = [
+    path("", views.index, name="index"),
+    path("users/<int:id>/", views.user_detail),
+    path("orders/", OrderListView.as_view(), name="orders"),
+    re_path(r"^legacy/(?P<slug>[\w-]+)/$", views.legacy),
+    path("api/", include("api.urls")),
+    path("admin/", admin.site.urls),
+    path("csrf/", csrf_exempt(views.csrf_view)),
+    path("cached/", cache_page(60)(views.cached_view)),
+    path("guarded/", login_required(OrderListView.as_view())),
+    # path("dead/", views.dead),
+]`
+	routes := Extract("urls.py", []byte(src))
+	assertRoute(t, routes, "ANY /", "index")
+	assertRoute(t, routes, "ANY /users/<int:id>/", "user_detail")
+	assertRoute(t, routes, "ANY /orders/", "OrderListView")
+	assertRoute(t, routes, "ANY /legacy/(?P<slug>[\\w-]+)/", "legacy")
+	// Decorators wrap the view in the urlconf itself. Naming the wrapper
+	// (csrf_exempt, cache_page(60), login_required) as the handler would be
+	// an invented handler; the innermost dotted name is the real view.
+	assertRoute(t, routes, "ANY /csrf/", "csrf_view")
+	assertRoute(t, routes, "ANY /cached/", "cached_view")
+	assertRoute(t, routes, "ANY /guarded/", "OrderListView")
+	if len(routes) != 7 {
+		t.Errorf("got %d routes, want 7 (include() and admin.site.urls are mounts, not routes; the commented line produces nothing): %v", len(routes), signatures(routes))
+	}
+	for _, r := range routes {
+		if strings.Contains(r.Path, "admin") {
+			t.Errorf("admin.site.urls is a mount, not a handler, but produced %s", r.Signature())
+		}
+		if strings.Contains(r.Path, "dead") {
+			t.Errorf("a commented-out registration was reported as a live route: %s", r.Signature())
+		}
+		if r.Framework != FrameworkDjango {
+			t.Errorf("%s: framework = %q, want django", r.Signature(), r.Framework)
+		}
+		if r.Confidence != model.ConfidenceMedium {
+			t.Errorf("%s: confidence = %v, want medium — the include() prefix is unknowable file-locally", r.Signature(), r.Confidence)
+		}
+	}
+}
+
+// A path() call outside a urls.py — a test helper named path, or pathlib —
+// must not become an endpoint.
+func TestDjangoOnlyReadsURLConfs(t *testing.T) {
+	src := `from pathlib import Path
+p = path("data/", loader)`
+	if routes := Extract("views.py", []byte(src)); len(routes) != 0 {
+		t.Errorf("views.py produced routes: %v", signatures(routes))
+	}
+}
+
+func TestExtractNest(t *testing.T) {
+	src := `import { Controller, Get, Post, Delete } from '@nestjs/common';
+
+@Controller('users')
+export class UsersController {
+  @Get()
+  findAll() {}
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {}
+
+  @Post('bulk')
+  async createMany(@Body() dto: CreateDto) {}
+
+  @Delete(':id')
+  @HttpCode(204)
+  remove() {}
+
+  @Get('inline') inline() {}
+}`
+	routes := Extract("users.controller.ts", []byte(src))
+	assertRoute(t, routes, "GET /users", "findAll")
+	assertRoute(t, routes, "GET /users/:id", "findOne")
+	assertRoute(t, routes, "POST /users/bulk", "createMany")
+	assertRoute(t, routes, "DELETE /users/:id", "remove")
+	assertRoute(t, routes, "GET /users/inline", "inline")
+	if len(routes) != 5 {
+		t.Errorf("got %d routes, want 5: %v", len(routes), signatures(routes))
+	}
+	for _, r := range routes {
+		if r.Framework != FrameworkNest {
+			t.Errorf("%s: framework = %q, want nest", r.Signature(), r.Framework)
+		}
+		if r.Confidence != model.ConfidenceHigh {
+			t.Errorf("%s: confidence = %v, want high", r.Signature(), r.Confidence)
+		}
+	}
+}
+
+func TestExtractNestMultiline(t *testing.T) {
+	src := `import { Controller, Patch, Param, Body } from '@nestjs/common';
+
+@Controller(
+    'tasks'
+)
+export class TasksController {
+    @Patch(
+        ':task_id/device-model'
+    )
+    changeDeviceModel(
+        @Param('task_id') taskId: string,
+        @Body() body: any,
+    ) {}
+}`
+	routes := Extract("tasks.controller.ts", []byte(src))
+	assertRoute(t, routes, "PATCH /tasks/:task_id/device-model", "changeDeviceModel")
+	if len(routes) != 1 {
+		t.Errorf("got %d routes, want 1: %v", len(routes), signatures(routes))
+	}
+}
+
+// A @Get with no @Controller above it is a decorator on something that is
+// not a controller — a test double, a mixin — and must not become a route.
+func TestNestRequiresAController(t *testing.T) {
+	src := `class NotAController {
+  @Get('x')
+  x() {}
+}`
+	if routes := Extract("a.ts", []byte(src)); len(routes) != 0 {
+		t.Errorf("a @Get outside @Controller produced routes: %v", signatures(routes))
+	}
+}
+
+// A decorator whose name merely starts with a verb — @GetUser is not @Get —
+// must not match. Without the word boundary this would report a route for a
+// decorator no NestJS release has ever defined.
+func TestNestVerbMustMatchExactly(t *testing.T) {
+	src := `@Controller('users')
+export class UsersController {
+  @GetUser('x')
+  x() {}
+}`
+	if routes := Extract("a.ts", []byte(src)); len(routes) != 0 {
+		t.Errorf("@GetUser produced routes: %v", signatures(routes))
+	}
+}
+
+// Two controllers in one file each keep their own prefix; an object-form
+// @Controller({ path }) and a bare @Controller() are read too.
+func TestNestControllerForms(t *testing.T) {
+	src := `@Controller({ path: 'orders', version: '1' })
+export class OrdersController {
+  @Get('open')
+  open() {}
+}
+
+@Controller()
+export class RootController {
+  @All('health')
+  health() {}
+}`
+	routes := Extract("c.ts", []byte(src))
+	assertRoute(t, routes, "GET /orders/open", "open")
+	assertRoute(t, routes, "ANY /health", "health")
+	if len(routes) != 2 {
+		t.Errorf("got %d routes, want 2: %v", len(routes), signatures(routes))
+	}
+}
+
+// An argument shape extractNest cannot read — an array of prefixes, an
+// object wrapped across lines — must be skipped rather than matched with an
+// empty capture: a guessed prefix produces a route that does not exist.
+func TestNestSkipsShapesItCannotRead(t *testing.T) {
+	t.Run("verb argument is an array", func(t *testing.T) {
+		src := `@Controller('u')
+export class C {
+  @Get(['a', 'b'])
+  list() {}
+}`
+		if routes := Extract("a.ts", []byte(src)); len(routes) != 0 {
+			t.Errorf("array-argument @Get produced routes: %v", signatures(routes))
+		}
+	})
+
+	t.Run("controller argument is an array", func(t *testing.T) {
+		src := `@Controller(['a', 'b'])
+export class C {
+  @Get('x')
+  x() {}
+}`
+		if routes := Extract("a.ts", []byte(src)); len(routes) != 0 {
+			t.Errorf("array-argument @Controller produced routes: %v", signatures(routes))
+		}
+	})
+
+	t.Run("controller object wrapped across lines", func(t *testing.T) {
+		src := `@Controller({
+  path: 'multi',
+})
+export class C {
+  @Get('x')
+  x() {}
+}`
+		if routes := Extract("a.ts", []byte(src)); len(routes) != 0 {
+			t.Errorf("wrapped @Controller produced routes: %v", signatures(routes))
+		}
+	})
+
+	t.Run("controller object with no path key", func(t *testing.T) {
+		src := `@Controller({ version: '1' })
+export class C {
+  @Get('x')
+  x() {}
+}`
+		routes := Extract("a.ts", []byte(src))
+		assertRoute(t, routes, "GET /x", "x")
+		if len(routes) != 1 {
+			t.Errorf("got %d routes, want 1: %v", len(routes), signatures(routes))
+		}
+	})
+}
+
+// TestNestPrefixDoesNotLeakIntoALaterClass: @Controller decorates ONE class.
+// A class declared after it with no decorator of its own is not a controller,
+// and a verb-named decorator inside it — a mixin, a helper, a test double —
+// must not become a route under the previous class's prefix.
+func TestNestPrefixDoesNotLeakIntoALaterClass(t *testing.T) {
+	src := `@Controller('users')
+export class UsersController {
+  @Get(':id')
+  findOne() {}
+}
+
+export class UsersHelper {
+  @Get('leaked')
+  helper() {}
+}
+
+@Controller('orders')
+export class OrdersController {
+  @Post()
+  create() {}
+}`
+	routes := Extract("users.controller.ts", []byte(src))
+	assertRoute(t, routes, "GET /users/:id", "findOne")
+	assertRoute(t, routes, "POST /orders", "create")
+	if len(routes) != 2 {
+		t.Errorf("got %d routes, want 2 — a class without @Controller is not one: %v", len(routes), signatures(routes))
+	}
+}
+
+// TestNestHandlerSurvivesMultiLineDecorators: Swagger-annotated controllers
+// stack decorators whose arguments span lines between the verb and the
+// method. The continuation lines are not declarations and not decorators, so
+// a scan that stops at the first such line loses the handler. The route was
+// still emitted; the handler was "" on exactly the controllers people
+// document most carefully.
+func TestNestHandlerSurvivesMultiLineDecorators(t *testing.T) {
+	src := `@Controller('users')
+export class UsersController {
+  @Get(':id')
+  @ApiResponse({
+    status: 200,
+    description: 'The user',
+    type: UserDto,
+  })
+  @ApiParam({ name: 'id' })
+  async findOne(@Param('id') id: string) {}
+
+  @Post()
+  @UseGuards(
+    AuthGuard('jwt'),
+    RolesGuard,
+  )
+  create(@Body() dto: CreateDto) {}
+}`
+	routes := Extract("users.controller.ts", []byte(src))
+	assertRoute(t, routes, "GET /users/:id", "findOne")
+	assertRoute(t, routes, "POST /users", "create")
+}
+
+func TestExtractGoGinGroupPrefixes(t *testing.T) {
+	src := `package main
+
+import "github.com/gin-gonic/gin"
+
+func SetupRouter() *gin.Engine {
+	r := gin.Default()
+	v1 := r.Group("/api/v1")
+	v1.GET("/users", listUsers)
+	v1.POST("/users", createUser)
+
+	admin := v1.Group("/admin")
+	admin.DELETE("/users/:id", deleteUser)
+	return r
+}`
+	routes := Extract("routes.go", []byte(src))
+	assertRoute(t, routes, "GET /api/v1/users", "listUsers")
+	assertRoute(t, routes, "POST /api/v1/users", "createUser")
+	assertRoute(t, routes, "DELETE /api/v1/admin/users/:id", "deleteUser")
+}
+
+func TestExtractFastAPIRouterPrefixes(t *testing.T) {
+	src := `from fastapi import FastAPI, APIRouter
+
+app = FastAPI()
+users_router = APIRouter(prefix="/users")
+
+@users_router.get("/{user_id}")
+async def get_user(user_id: int):
+    return {"id": user_id}
+
+@users_router.post("")
+def create_user(data: dict):
+    return data
+`
+	routes := Extract("api.py", []byte(src))
+	assertRoute(t, routes, "GET /users/{user_id}", "get_user")
+	assertRoute(t, routes, "POST /users", "create_user")
+}
+
+func TestExtractExpressMountPrefixes(t *testing.T) {
+	src := `const express = require('express');
+const app = express();
+const userRouter = express.Router();
+
+userRouter.get('/profile', getProfile);
+userRouter.post('/settings', updateSettings);
+
+app.use('/api/v2', userRouter);
+`
+	routes := Extract("server.js", []byte(src))
+	assertRoute(t, routes, "GET /api/v2/profile", "getProfile")
+	assertRoute(t, routes, "POST /api/v2/settings", "updateSettings")
+}
+
+// Next.js declares a route by where the file sits, not by a call: the App
+// Router's app/**/route.ts exports one function per verb, and the Pages
+// Router's pages/api/** default-exports a handler for every verb. None of it
+// matched the call-shaped extractors, so a Next.js API surface was invisible.
+func TestExtractNextJSAppRouter(t *testing.T) {
+	src := "import { NextResponse } from 'next/server'\n\n" +
+		"export async function GET(req: Request) { return NextResponse.json([]) }\n" +
+		"export const POST = async (req: Request) => NextResponse.json({})\n" +
+		"export function helper() {}\n"
+	cases := map[string]string{
+		"web/app/api/orders/route.ts":                 "/api/orders",
+		"app/api/orders/[id]/route.ts":                "/api/orders/{id}",
+		"src/app/(shop)/api/cart/[...items]/route.js": "/api/cart/{items*}",
+		"app/route.ts":                                "/",
+	}
+	for path, want := range cases {
+		routes := Extract(path, []byte(src))
+		assertRoute(t, routes, "GET "+want, "GET")
+		assertRoute(t, routes, "POST "+want, "POST")
+		if len(routes) != 2 {
+			t.Errorf("%s: %d routes, want 2 (helper is not a verb)", path, len(routes))
+		}
+		for _, r := range routes {
+			if r.Framework != FrameworkNext {
+				t.Errorf("%s: framework %q, want %q", path, r.Framework, FrameworkNext)
+			}
+		}
+	}
+	// A route.ts outside an app directory is not a Next.js route file.
+	if routes := Extract("lib/route.ts", []byte(src)); len(routes) != 0 {
+		t.Errorf("lib/route.ts produced %v", routes)
+	}
+}
+
+func TestExtractNextJSPagesAPI(t *testing.T) {
+	src := "export default function handler(req, res) { res.status(200).json({}) }\n"
+	routes := Extract("pages/api/users/[id].ts", []byte(src))
+	assertRoute(t, routes, "ANY /api/users/{id}", "handler")
+	if routes := Extract("src/pages/api/index.js", []byte(src)); len(routes) != 1 || routes[0].Path != "/api" {
+		t.Errorf("pages/api/index.js = %v, want ANY /api", routes)
+	}
+	// A page that is not under api/ renders HTML; it is not an endpoint.
+	if routes := Extract("pages/users/[id].tsx", []byte(src)); len(routes) != 0 {
+		t.Errorf("a page was reported as an endpoint: %v", routes)
+	}
+}
+
+// Flask code commonly writes paths in single quotes, and a Blueprint carries
+// its url_prefix the way an APIRouter carries prefix. Both were dropped.
+func TestExtractPythonSingleQuotesAndBlueprints(t *testing.T) {
+	src := `from flask import Flask, Blueprint
+
+app = Flask(__name__)
+bp = Blueprint('orders', __name__, url_prefix='/orders')
+admin = Blueprint("admin", __name__)
+app.register_blueprint(admin, url_prefix="/admin")
+
+@bp.route('/<int:id>', methods=['GET', 'DELETE'])
+def order(id):
+    return ''
+
+@admin.route('/stats')
+def stats():
+    return ''
+
+@app.route('/health')
+def health():
+    return 'ok'
+`
+	routes := Extract("app.py", []byte(src))
+	assertRoute(t, routes, "GET /orders/<int:id>", "order")
+	assertRoute(t, routes, "DELETE /orders/<int:id>", "order")
+	assertRoute(t, routes, "GET /admin/stats", "stats")
+	assertRoute(t, routes, "GET /health", "health")
+}
+
+func TestPythonRoutersReadsMountsAndImports(t *testing.T) {
+	src := `from fastapi import FastAPI
+from app.api import users, orders as ord
+from app.api.items import (
+    router as items_router,  # the catalogue
+)
+import app.api.legacy
+import app.api.v2 as v2
+
+app = FastAPI()
+app.include_router(users.router, prefix="/users")
+app.include_router(
+    items_router,
+    prefix='/items',
+)
+app.include_router(ord.router)
+app.include_router(app.api.legacy.router, prefix="/old")
+app.include_router(v2.public.router, prefix="/v2")
+
+@app.get("/health")
+def health():
+    return {}
+`
+	info := PythonRouters([]byte(src))
+	if len(info.Mounts) != 5 {
+		t.Fatalf("got %d mounts, want 5: %+v", len(info.Mounts), info.Mounts)
+	}
+	if info.Receivers[19] != "app" {
+		t.Errorf("receiver of the health route = %q, want app (%v)", info.Receivers[19], info.Receivers)
+	}
+	want := []struct{ child, module, variable, prefix string }{
+		{"users.router", "app.api.users", "router", "/users"},
+		{"items_router", "app.api.items", "router", "/items"},
+		{"ord.router", "app.api.orders", "router", ""},
+		{"app.api.legacy.router", "app.api.legacy", "router", "/old"},
+		{"v2.public.router", "app.api.v2.public", "router", "/v2"},
+	}
+	for i, w := range want {
+		m := info.Mounts[i]
+		if m.Child != w.child || m.Prefix != w.prefix || m.Parent != "app" {
+			t.Errorf("mount %d = %+v, want child %q prefix %q", i, m, w.child, w.prefix)
+		}
+		mod, v, ok := info.ResolveMountTarget(m.Child)
+		if !ok || mod != w.module || v != w.variable {
+			t.Errorf("ResolveMountTarget(%q) = %q, %q, %v; want %q, %q", m.Child, mod, v, ok, w.module, w.variable)
+		}
+	}
+	if _, _, ok := info.ResolveMountTarget("local_router"); ok {
+		t.Error("a name no import binds resolved to a module")
+	}
+}
+
+func TestExpressRoutersReadsMountsAndImports(t *testing.T) {
+	src := `const express = require('express');
+const usersRouter = require('./routes/users');
+import ordersRouter from './routes/orders';
+const app = express();
+app.use('/api/v1/users', usersRouter);
+app.use('/api/v1/orders', ordersRouter);
+`
+	info := ExpressRouters([]byte(src))
+	if len(info.Mounts) != 2 {
+		t.Fatalf("got %d mounts, want 2: %+v", len(info.Mounts), info.Mounts)
+	}
+	if got := info.Imports["usersRouter"]; got != (JSImport{Module: "./routes/users"}) {
+		t.Errorf("expected usersRouter import, got %+v", got)
+	}
+	if got := info.Imports["ordersRouter"]; got != (JSImport{Module: "./routes/orders"}) {
+		t.Errorf("expected ordersRouter import, got %+v", got)
+	}
+
+	allFiles := []string{ // sorted, as ResolveJSModulePath requires
+		"server/app.js",
+		"server/routes/orders.ts",
+		"server/routes/users.js",
+	}
+	uPath := ResolveJSModulePath("server/app.js", "./routes/users", allFiles)
+	if uPath != "server/routes/users.js" {
+		t.Errorf("ResolveJSModulePath = %q, want 'server/routes/users.js'", uPath)
+	}
+	oPath := ResolveJSModulePath("server/app.js", "./routes/orders", allFiles)
+	if oPath != "server/routes/orders.ts" {
+		t.Errorf("ResolveJSModulePath = %q, want 'server/routes/orders.ts'", oPath)
+	}
+}
+
+func TestExpressRoutersReadsEveryMountAndExportShape(t *testing.T) {
+	src := `import express from 'express';
+import { adminRouter as admin } from './routes/admin.js';
+import * as routes from './routes/index.js';
+const { billing: billingRouter } = require('./routes/billing');
+const app = express();
+const api = express.Router();
+app.use('/api', api);
+api.use('/admin', requireAuth, rateLimit({ max: 5 }), admin);
+app.use(
+  '/billing',
+  billingRouter,
+);
+app.use('/health', require('./routes/health'));
+app.use('/docs', routes.docs);
+app.use('/static', express.static('public'));
+api.get('/ping', ping);
+export default app;
+export { api as apiRouter };
+`
+	info := ExpressRouters([]byte(src))
+	want := map[string]struct{ module, export, prefix string }{
+		"admin":         {"./routes/admin.js", "adminRouter", "/api/admin"},
+		"billingRouter": {"./routes/billing", "billing", "/billing"},
+		"":              {"./routes/health", "", "/health"},
+		"routes.docs":   {"./routes/index.js", "docs", "/docs"},
+	}
+	got := 0
+	for _, m := range info.Mounts {
+		w, ok := want[m.Child]
+		if !ok {
+			continue
+		}
+		got++
+		mod, export, ok := info.ResolveMountTarget(m)
+		if !ok || mod != w.module || export != w.export {
+			t.Errorf("mount %q resolved to %q, %q, %v; want %q, %q", m.Child, mod, export, ok, w.module, w.export)
+		}
+		if p := joinRoutePath(info.Prefixes[m.Parent], m.Prefix); p != w.prefix {
+			t.Errorf("mount %q: prefix %q, want %q", m.Child, p, w.prefix)
+		}
+	}
+	if got != len(want) {
+		t.Errorf("found %d of %d mounts: %+v", got, len(want), info.Mounts)
+	}
+	for _, m := range info.Mounts {
+		if m.Prefix == "/static" {
+			t.Errorf("express.static(...) read as a router: %+v", m)
+		}
+	}
+	if info.Default != "app" || info.Exports["apiRouter"] != "api" {
+		t.Errorf("exports: default %q, named %v", info.Default, info.Exports)
+	}
+	if info.Receivers[16] != "api" {
+		t.Errorf("receiver of line 16 = %q, want api", info.Receivers[16])
+	}
+
+	files := []string{"src/app.ts", "src/routes/admin.ts", "src/routes/health/index.js"}
+	if p := ResolveJSModulePath("src/app.ts", "./routes/admin.js", files); p != "src/routes/admin.ts" {
+		t.Errorf("a .js specifier for a .ts source resolved to %q", p)
+	}
+	if p := ResolveJSModulePath("src/app.ts", "./routes/health", files); p != "src/routes/health/index.js" {
+		t.Errorf("a directory import resolved to %q", p)
+	}
+	if p := ResolveJSModulePath("src/app.ts", "@/routes/admin", files); p != "" {
+		t.Errorf("an alias resolved to %q", p)
+	}
+}
+
+func TestExpressInFileMountWithMiddleware(t *testing.T) {
+	src := `const app = express();
+const api = express.Router();
+app.use('/api', authenticate, api);
+api.get('/users', listUsers);
+`
+	routes := Extract("app.js", []byte(src))
+	if len(routes) != 1 || routes[0].Path != "/api/users" {
+		t.Fatalf("routes = %+v, want GET /api/users", routes)
+	}
+}
+
+// chi nests routes in closures whose parameter shadows the outer router; the
+// closure's prefix belongs to them, on one line or several.
+func TestExtractGoChiRouteClosures(t *testing.T) {
+	src := `package main
+
+func routes() http.Handler {
+	r := chi.NewRouter()
+	r.Get("/health", health)
+	r.Route("/api", func(r chi.Router) {
+		r.Get("/items", listItems)
+		r.Route("/admin", func(r chi.Router) {
+			r.Post("/reset", reset)
+		})
+		r.Group(func(r chi.Router) {
+			r.Get("/me", me)
+		})
+	})
+	r.Route("/v2", func(r chi.Router) { r.Get("/ping", ping) })
+	r.Get("/after", after)
+	return r
+}
+`
+	got := map[string]bool{}
+	for _, rt := range Extract("main.go", []byte(src)) {
+		got[rt.Method+" "+rt.Path] = true
+	}
+	for _, want := range []string{"GET /health", "GET /api/items", "POST /api/admin/reset", "GET /api/me", "GET /v2/ping", "GET /after"} {
+		if !got[want] {
+			t.Errorf("missing %q; got %v", want, got)
+		}
+	}
+}
+
+func TestGoRoutersReadsParamsReturnsAndCalls(t *testing.T) {
+	main := `package main
+
+import (
+	"example.com/shop/internal/users"
+	orders "example.com/shop/internal/orders/v2"
+	"github.com/gin-gonic/gin"
+)
+
+func main() {
+	r := gin.Default()
+	api := r.Group("/api")
+	users.RegisterRoutes(api.Group("/users"))
+	orders.Register(api)
+	r.Use(gin.Logger())
+}
+`
+	f := GoRouters([]byte(main))
+	if f.Package != "main" || f.Imports["users"] != "example.com/shop/internal/users" || f.Imports["orders"] != "example.com/shop/internal/orders/v2" {
+		t.Fatalf("package %q, imports %v", f.Package, f.Imports)
+	}
+	calls := map[string]GoRouterVar{}
+	for _, c := range f.Funcs["main"].Calls {
+		calls[c.Qual+"."+c.Func] = c.Arg
+	}
+	if v := calls["users.RegisterRoutes"]; v != (GoRouterVar{Root: "r", Prefix: "/api/users"}) {
+		t.Errorf("users.RegisterRoutes arg = %+v", v)
+	}
+	if v := calls["orders.Register"]; v != (GoRouterVar{Root: "r", Prefix: "/api"}) {
+		t.Errorf("orders.Register arg = %+v", v)
+	}
+	if _, ok := calls["r.Use"]; ok {
+		t.Error("a method of the router itself was read as handing it on")
+	}
+
+	users := `package users
+
+func RegisterRoutes(rg *gin.RouterGroup) {
+	rg.GET("/:id", get)
+	admin := rg.Group("/admin")
+	admin.DELETE("/:id", remove)
+}
+`
+	u := GoRouters([]byte(users))
+	if u.Funcs["RegisterRoutes"].Param != "rg" {
+		t.Fatalf("router param = %q", u.Funcs["RegisterRoutes"].Param)
+	}
+	if s := u.Routes[4]; s.Func != "RegisterRoutes" || s.Var != (GoRouterVar{Root: "rg"}) {
+		t.Errorf("site of line 4 = %+v", s)
+	}
+	if s := u.Routes[6]; s.Var != (GoRouterVar{Root: "rg", Prefix: "/admin"}) {
+		t.Errorf("site of line 6 = %+v", s)
+	}
+
+	chiPkg := `package billing
+
+func Routes() chi.Router {
+	r := chi.NewRouter()
+	r.Get("/invoices", list)
+	return r
+}
+`
+	b := GoRouters([]byte(chiPkg))
+	if b.Funcs["Routes"].Returns != "r" {
+		t.Errorf("returned router = %q", b.Funcs["Routes"].Returns)
+	}
+	mountSrc := "package main\n\nfunc routes() {\n\tr := chi.NewRouter()\n\tr.Mount(\"/billing\", billing.Routes())\n}\n"
+	m := GoRouters([]byte(mountSrc))
+	if c := m.Funcs["routes"].Calls; len(c) != 1 || !c[0].Mounted || c[0].Qual != "billing" || c[0].Arg.Prefix != "/billing" {
+		t.Errorf("mount calls = %+v", c)
+	}
+
+	mods := map[string]string{"example.com/shop": "backend"}
+	if d, ok := GoPackageDir("example.com/shop/internal/users", mods); !ok || d != "backend/internal/users" {
+		t.Errorf("package dir = %q, %v", d, ok)
+	}
+	if _, ok := GoPackageDir("github.com/gin-gonic/gin", mods); ok {
+		t.Error("a dependency resolved inside the repository")
+	}
+	if GoModulePath("module example.com/shop\n\ngo 1.22\n") != "example.com/shop" {
+		t.Error("module path not read")
+	}
+}
+
+func TestExtractCSharpMinimal(t *testing.T) {
+	src := `using Microsoft.AspNetCore.Builder;
+
+var builder = WebApplication.CreateBuilder(args);
+var app = builder.Build();
+
+app.MapGet("/health", HealthCheck);
+app.MapPost("/orders", CreateOrder);
+
+var v1 = app.MapGroup("/api/v1");
+v1.MapGet("/users/{id}", GetUser);
+v1.MapDelete("/users/{id}", DeleteUser);
+`
+	routes := Extract("Program.cs", []byte(src))
+	if len(routes) != 4 {
+		t.Fatalf("got %d routes, want 4: %v", len(routes), signatures(routes))
+	}
+	assertRoute(t, routes, "GET /health", "HealthCheck")
+	assertRoute(t, routes, "POST /orders", "CreateOrder")
+	assertRoute(t, routes, "GET /api/v1/users/{id}", "GetUser")
+	assertRoute(t, routes, "DELETE /api/v1/users/{id}", "DeleteUser")
+
+	for _, r := range routes {
+		if r.Framework != FrameworkCSharpMinimal {
+			t.Errorf("route %s framework = %s, want %s", r.Signature(), r.Framework, FrameworkCSharpMinimal)
+		}
+	}
+}
+
+func TestExtractRustActixAndAxum(t *testing.T) {
+	actixSrc := `use actix_web::{get, post, web, App, HttpServer, Responder};
+
+#[get("/api/v1/items")]
+async fn list_items() -> impl Responder {
+    "items"
+}
+
+#[post("/api/v1/items")]
+pub async fn create_item(req: String) -> impl Responder {
+    "created"
+}
+`
+	routes := Extract("src/handlers.rs", []byte(actixSrc))
+	if len(routes) != 2 {
+		t.Fatalf("actix: got %d routes, want 2: %v", len(routes), signatures(routes))
+	}
+	assertRoute(t, routes, "GET /api/v1/items", "list_items")
+	assertRoute(t, routes, "POST /api/v1/items", "create_item")
+
+	axumSrc := `use axum::{routing::{get, post}, Router};
+
+fn app() -> Router {
+    Router::new()
+        .route("/users", get(get_users).post(create_user))
+        .route("/health", get(health_check))
+}
+`
+	axumRoutes := Extract("src/main.rs", []byte(axumSrc))
+	if len(axumRoutes) != 3 {
+		t.Fatalf("axum: got %d routes, want 3: %v", len(axumRoutes), signatures(axumRoutes))
+	}
+	assertRoute(t, axumRoutes, "GET /users", "get_users")
+	assertRoute(t, axumRoutes, "POST /users", "create_user")
+	assertRoute(t, axumRoutes, "GET /health", "health_check")
+}
+
+func TestExtractMiddlewaresGoExpressFastAPI(t *testing.T) {
+	goSrc := `package main
+
+func setup(r *gin.Engine) {
+	r.Use(AuthMiddleware, LoggerMiddleware)
+	r.GET("/protected/profile", GetProfile)
+}
+`
+	goRoutes := Extract("routes.go", []byte(goSrc))
+	if len(goRoutes) != 1 {
+		t.Fatalf("go: got %d routes, want 1", len(goRoutes))
+	}
+	if len(goRoutes[0].Middlewares) != 2 || goRoutes[0].Middlewares[0] != "AuthMiddleware" || goRoutes[0].Middlewares[1] != "LoggerMiddleware" {
+		t.Errorf("go middlewares = %v, want [AuthMiddleware, LoggerMiddleware]", goRoutes[0].Middlewares)
+	}
+
+	pySrc := `from fastapi import FastAPI, Depends
+
+app = FastAPI()
+
+@app.get("/secure/data", dependencies=[Depends(verify_token)])
+async def get_data():
+    return {"status": "ok"}
+`
+	pyRoutes := Extract("app.py", []byte(pySrc))
+	if len(pyRoutes) != 1 {
+		t.Fatalf("fastapi: got %d routes, want 1", len(pyRoutes))
+	}
+	if len(pyRoutes[0].Middlewares) != 1 || pyRoutes[0].Middlewares[0] != "verify_token" {
+		t.Errorf("fastapi middlewares = %v, want [verify_token]", pyRoutes[0].Middlewares)
+	}
+
+	jsSrc := `const express = require('express');
+const app = express();
+
+app.use(corsMiddleware);
+app.get('/admin', requireAdmin, handleAdmin);
+`
+	jsRoutes := Extract("server.js", []byte(jsSrc))
+	if len(jsRoutes) != 1 {
+		t.Fatalf("express: got %d routes, want 1", len(jsRoutes))
+	}
+	if len(jsRoutes[0].Middlewares) != 2 || jsRoutes[0].Middlewares[0] != "corsMiddleware" || jsRoutes[0].Middlewares[1] != "requireAdmin" {
+		t.Errorf("express middlewares = %v, want [corsMiddleware, requireAdmin]", jsRoutes[0].Middlewares)
+	}
+	if jsRoutes[0].Handler != "handleAdmin" {
+		t.Errorf("express handler = %s, want handleAdmin", jsRoutes[0].Handler)
+	}
+}

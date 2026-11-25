@@ -1,0 +1,19 @@
+# Rule: every heading, ATX (# to ######) or setext (text over === or ---), is a
+# package named by its text with the closing # run, emphasis markers, code-span
+# backticks and link syntax removed (a link keeps its text). Nothing else: no
+# links, link reference definitions, code blocks, list items, tables, front
+# matter, HTML blocks. A heading inside a block quote is still a heading.
+# Kept narrow because a document is searched by its section titles; every other
+# construct is prose.
+guide.markdown	1	package	Widget Guide
+guide.markdown	5	package	Installing
+guide.markdown	9	package	Install on Linux
+guide.markdown	16	package	Setext Heading One
+guide.markdown	19	package	Setext Heading Two
+guide.markdown	25	package	quoted heading
+guide.markdown	30	package	Using widget run
+guide.markdown	40	package	Closing
+api_notes.markdown	5	package	The parse_file function
+api_notes.markdown	12	package	emphasised and strong words
+api_notes.markdown	27	package	Release notes for a multi-line setext heading
+api_notes.markdown	31	package	Deepest level

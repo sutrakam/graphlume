@@ -1,0 +1,32 @@
+# CUE: a definition is
+#   the package clause -> package
+#   a definition field (#Name: ...), at any depth -> class
+#   a top-level field with an identifier label (name:, _hidden:) -> variable
+#   a top-level let clause -> constant
+# Not definitions: fields nested in a struct, optional and pattern constraints
+# ([string]: _, name?:), the second and later labels of a: b: c, imports,
+# comprehensions and guards, references (#Service used as a value).
+# Known gap: a top-level field with a quoted label ("quoted-field": true).
+schema.cue	2	package	schema
+schema.cue	10	class	#Port
+schema.cue	12	class	#Service
+schema.cue	22	class	#Environment
+schema.cue	24	variable	_defaultLabels
+schema.cue	29	variable	catalogue
+schema.cue	40	variable	environment
+schema.cue	42	variable	limits
+schema.cue	47	variable	names
+schema.cue	49	variable	total
+schema.cue	51	variable	upper
+schema.cue	53	constant	base
+schema.cue	55	variable	doubled
+deploy.cue	1	package	deploy
+deploy.cue	6	variable	spec
+deploy.cue	7	class	#Probe
+deploy.cue	16	variable	cluster
+deploy.cue	18	class	#Rollout
+deploy.cue	20	class	#Step
+deploy.cue	25	variable	_internal
+deploy.cue	29	variable	service
+deploy.cue	34	class	#Config
+deploy.cue	36	variable	tags

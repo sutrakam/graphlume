@@ -1,0 +1,57 @@
+{
+  "is_error": false,
+  "result": {
+    "index_revision": 1,
+    "index_status": "ready",
+    "items": [
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 3,
+        "name": "apply",
+        "path": "py/billing/invoice.py",
+        "source": "source_code",
+        "why": "written as self.settle; declared on Invoice, the enclosing class"
+      }
+    ],
+    "notes": [
+      "COVERAGE TOO LOW — relationship lookup for Python is unreliable here: 38% of the 16 Python references that name something this index defines are bound to a definition (10 ambiguous; a further 4 matched no definition here at all, out of 20 Python references in total). 'graphlume resolve' has already run on every one of them, so running it again will not change this; where an indexer exists for the language, 'graphlume scip import' can. Do not present what follows as an answer to the question asked.",
+      "This result is a LOWER BOUND, not a complete answer. GraphLume reports only relationships it could resolve statically in the indexed run; anything it could not resolve is absent from this report, not absent from the code.",
+      "References spelled \"settle\" in this index: 8. 1 bound to this definition, 4 bound to other definitions of the name, 3 ambiguous.",
+      "5 definitions are named \"settle\". This answer is for the function at py/billing/invoice.py:5, chosen by path and by line. Pass path and line to choose another."
+    ],
+    "page": {
+      "limit": 50,
+      "offset": 0,
+      "returned": 1,
+      "total": 1
+    },
+    "provenance": {
+      "age_seconds": 305,
+      "caveat": "HEAD could not be determined, so index freshness is unknown. This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.",
+      "head_matches_build": false
+    },
+    "reliability": {
+      "lead": "only 38% of the Python references that name something this index defines are bound.",
+      "level": "low",
+      "reasons": [
+        "COVERAGE TOO LOW — relationship lookup for Python is unreliable here: 38% of the 16 Python references that name something this index defines are bound to a definition (10 ambiguous; a further 4 matched no definition here at all, out of 20 Python references in total). 'graphlume resolve' has already run on every one of them, so running it again will not change this; where an indexer exists for the language, 'graphlume scip import' can. Do not present what follows as an answer to the question asked.",
+        "This result is a LOWER BOUND, not a complete answer. GraphLume reports only relationships it could resolve statically in the indexed run; anything it could not resolve is absent from this report, not absent from the code."
+      ]
+    },
+    "summary": "UNRELIABLE — only 38% of the Python references that name something this index defines are bound. 1 caller(s) of settle (py/billing/invoice.py:5) are recorded.",
+    "verdict": {
+      "counts": {
+        "high": 1
+      },
+      "next_step": "Do not present these rows as the answer. They are leads from a minority of the evidence: confirm with search for the name, and treat what is absent as unknown. Reindex first: these tiers describe the indexed revision, not your working tree.",
+      "signals": [
+        "only 38% of the Python references that name something this index defines are bound.",
+        "the index does not match HEAD; these tiers describe the indexed revision, not your working tree"
+      ],
+      "status": "unreliable"
+    }
+  },
+  "text": "=== SYSTEM METADATA ===\nUNRELIABLE — only 38% of the Python references that name something this index defines are bound. 1 caller(s) of settle (py/billing/invoice.py:5) are recorded.\nindex_revision: 1  status: ready\nnote: COVERAGE TOO LOW — relationship lookup for Python is unreliable here: 38% of the 16 Python references that name something this index defines are bound to a definition (10 ambiguous; a further 4 matched no definition here at all, out of 20 Python references in total). 'graphlume resolve' has already run on every one of them, so running it again will not change this; where an indexer exists for the language, 'graphlume scip import' can. Do not present what follows as an answer to the question asked.\nnote: This result is a LOWER BOUND, not a complete answer. GraphLume reports only relationships it could resolve statically in the indexed run; anything it could not resolve is absent from this report, not absent from the code.\nnote: References spelled \"settle\" in this index: 8. 1 bound to this definition, 4 bound to other definitions of the name, 3 ambiguous.\nnote: 5 definitions are named \"settle\". This answer is for the function at py/billing/invoice.py:5, chosen by path and by line. Pass path and line to choose another.\nprovenance: HEAD could not be determined, so index freshness is unknown. This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.\nverdict: unreliable (high=1)\nverdict_signal: only 38% of the Python references that name something this index defines are bound.\nverdict_signal: the index does not match HEAD; these tiers describe the indexed revision, not your working tree\nnext_step: Do not present these rows as the answer. They are leads from a minority of the evidence: confirm with search for the name, and treat what is absent as unknown. Reindex first: these tiers describe the indexed revision, not your working tree.\n\n=== INFERRED ===\n- calls apply  py/billing/invoice.py:3  [confidence=high source=source_code]  (written as self.settle; declared on Invoice, the enclosing class)\n",
+  "tool": "callers"
+}

@@ -1,0 +1,6 @@
+{
+  "is_error": true,
+  "result": null,
+  "text": "validating \"arguments\": validating root: required: missing properties: [\"name\"]",
+  "tool": "callers"
+}

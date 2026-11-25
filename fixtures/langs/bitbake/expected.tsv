@@ -1,0 +1,64 @@
+# BitBake. Rule: every top-level statement that declares something. A variable
+# assignment (=, ?=, ??=, :=, +=, .=, with an override such as :append or
+# :${PN}, and with export) is variable named by the variable alone; the same
+# variable assigned on several lines is several symbols. Shell functions and
+# tasks (do_x() {}, fakeroot do_x() {}), Python tasks and functions
+# (python do_x() {}), Python def, and addtask lines are function (an addtask
+# line is named by the task as written). Not definitions: setting a variable
+# flag (do_x[dirs] = ..., PACKAGECONFIG[gl] = ...), inherit, include, require,
+# EXPORT_FUNCTIONS, addhandler, and the anonymous python () {} block (also
+# spelled python __anonymous() {}).
+demo.bb	3	variable	SUMMARY
+demo.bb	4	variable	DESCRIPTION
+demo.bb	5	variable	LICENSE
+demo.bb	6	variable	LIC_FILES_CHKSUM
+demo.bb	12	variable	PV
+demo.bb	13	variable	SRC_URI
+demo.bb	14	variable	SRCREV
+demo.bb	15	variable	S
+demo.bb	17	variable	DEPENDS
+demo.bb	18	variable	DEPENDS
+demo.bb	19	variable	RDEPENDS
+demo.bb	20	variable	PACKAGECONFIG
+demo.bb	22	variable	EXTRA_OECMAKE
+demo.bb	23	variable	CFLAGS_EXTRA
+demo.bb	24	variable	FILES
+demo.bb	25	variable	D_VAR
+demo.bb	27	function	do_configure
+demo.bb	31	function	do_compile
+demo.bb	35	function	do_install
+demo.bb	40	function	do_install
+demo.bb	44	function	helper_function
+demo.bb	48	function	do_fix_perms
+demo.bb	52	function	do_check
+demo.bb	58	function	do_stamp_version
+demo.bb	62	function	helper_python
+demo.bb	66	function	do_rootfs_hook
+demo.bb	74	function	compute_flags
+demo.bb	78	function	other_helper
+demo.bb	81	function	check
+demo.bb	82	function	stamp_version
+demo.bb	83	function	fix_perms
+stamp.bbclass	2	variable	STAMP_DIR
+stamp.bbclass	3	variable	STAMP_FORMAT
+stamp.bbclass	4	variable	STAMP_LIST
+stamp.bbclass	5	variable	STAMP_LIST
+stamp.bbclass	6	variable	STAMP_LIST
+stamp.bbclass	7	variable	STAMP_PREFIX
+stamp.bbclass	8	variable	STAMP_SUFFIX
+stamp.bbclass	9	variable	STAMP_HOME
+stamp.bbclass	10	variable	VIRTUAL-RUNTIME_stamper
+stamp.bbclass	17	function	stamp_name
+stamp.bbclass	22	function	_private_helper
+stamp.bbclass	30	function	stamp_handler
+stamp.bbclass	36	function	stamp_do_stamp
+stamp.bbclass	40	function	stamp_cleanup
+stamp.bbclass	44	function	do_stamp_report
+stamp.bbclass	51	function	stamp_report
+stamp.bbclass	52	function	do_stamp
+stamp.bbclass	54	variable	BBCLASSEXTEND
+builder.bbclass	3	variable	BUILDER_TARGET
+builder.bbclass	6	function	builder_run
+builder.bbclass	11	function	builder_do_compile
+builder.bbclass	15	function	builder_do_install
+builder.bbclass	4	variable	PREFERRED_PROVIDER_virtual/builder

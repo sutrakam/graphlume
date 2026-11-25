@@ -1,0 +1,89 @@
+// Variables.
+@primary: #3366cc;
+@spacing: 8px;
+@font-stack: "Helvetica Neue", sans-serif;
+@selector-name: card;
+
+:root {
+  --surface: #fff;
+}
+
+// Mixins.
+.border-radius(@radius: 4px) {
+  border-radius: @radius;
+}
+
+.button-variant(@bg; @fg: white) {
+  background: @bg;
+  color: @fg;
+}
+
+.clearfix() {
+  &:after {
+    content: "";
+    clear: both;
+  }
+}
+
+.size(@w, @h) when (@w > 0) {
+  width: @w;
+  height: @h;
+}
+
+.rounded {
+  .border-radius(8px);
+}
+
+#namespace {
+  .mixin() {
+    color: red;
+  }
+  .helper(@x) {
+    margin: @x;
+  }
+}
+
+@detached: {
+  background: red;
+};
+
+@plugin "my-plugin";
+@import "other";
+
+@keyframes pulse {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.card {
+  @local: 4px;
+  padding: @local;
+  .rounded();
+  .button-variant(@primary; black);
+  #namespace > .mixin();
+  &-title {
+    font-size: @spacing;
+  }
+  .icon {
+    animation: pulse 1s;
+  }
+}
+
+.@{selector-name}-wide {
+  width: 100%;
+}
+
+#sidebar {
+  width: percentage(0.5);
+}
+
+.btn:hover {
+  color: blue;
+}
+
+@media (min-width: 768px) {
+  @spacing: 16px;
+  .card {
+    padding: @spacing;
+  }
+}

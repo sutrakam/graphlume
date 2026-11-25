@@ -1,0 +1,86 @@
+import("//build/config/features.gni")
+import("//build/rules.gni")
+
+declare_args() {
+  # Enables the experimental renderer.
+  use_new_renderer = false
+  max_threads = 8
+  renderer_backend = "gl"
+}
+
+enable_logging = !is_official_build
+common_defines = [ "APP_NAME=demo" ]
+
+config("app_config") {
+  defines = common_defines
+  include_dirs = [ "include" ]
+}
+
+config("warnings") {
+  cflags = [ "-Wall" ]
+}
+
+static_library("core") {
+  sources = [
+    "core/engine.cc",
+    "core/engine.h",
+  ]
+  public_configs = [ ":app_config" ]
+  deps = [ "//base" ]
+}
+
+source_set("util") {
+  sources = [ "util/strings.cc" ]
+  configs += [ ":warnings" ]
+}
+
+shared_library("plugin") {
+  sources = [ "plugin/main.cc" ]
+  deps = [ ":core" ]
+}
+
+executable("demo") {
+  sources = [ "main.cc" ]
+  deps = [
+    ":core",
+    ":util",
+  ]
+  foreach(name, [ "a", "b" ]) {
+    sources += [ "gen/${name}.cc" ]
+  }
+  local_flag = true
+}
+
+test("demo_unittests") {
+  sources = [ "demo_unittests.cc" ]
+  deps = [ ":core" ]
+}
+
+group("all") {
+  deps = [
+    ":demo",
+    ":plugin",
+  ]
+}
+
+action("generate_version") {
+  script = "tools/version.py"
+  outputs = [ "$target_gen_dir/version.h" ]
+}
+
+copy("assets") {
+  sources = [ "assets/icon.png" ]
+  outputs = [ "$root_out_dir/icon.png" ]
+}
+
+if (use_new_renderer) {
+  source_set("renderer_v2") {
+    sources = [ "render/v2.cc" ]
+  }
+}
+
+if (is_win) {
+  config("win_config") {
+    defines = [ "WIN32" ]
+  }
+}

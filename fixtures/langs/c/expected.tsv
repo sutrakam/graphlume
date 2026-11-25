@@ -1,0 +1,44 @@
+# C: structs and typedef names (class), functions including those returning a pointer or
+# written behind an attribute macro (function). A struct that is only named
+# (`struct pending;`, `typedef struct wire wire_t;`) is not a definition; a function-pointer
+# typedef is recorded under its own name, never its return type. A function-like #define is a
+# function named by the macro (object-like ones are not recorded). A function written as a macro
+# call and a block is recorded under what the macro defines: NAME(f, ...) is f, SYSCALL_DEFINEn(f, ...)
+# is sys_f, COMPAT_SYSCALL_DEFINEn(f, ...) is compat_sys_f, TEST_F(suite, case) is suite_case. File-level variables,
+# enums and unions are not listed; see KNOWN_GAPS.md.
+types.c	6	class	wire_t
+types.c	7	class	counter_t
+types.c	9	class	point
+types.c	14	class	buffer_t
+types.c	19	class	entry_t
+types.c	19	class	entry
+types.c	24	class	compare_fn
+types.c	25	class	lookup_fn
+types.c	30	function	add
+types.c	35	function	dup_name
+types.c	40	function	name_table
+types.c	45	function	run
+macros.c	3	function	NO_SANITIZE
+macros.c	5	function	bump
+macros.c	10	function	read_at
+macros.c	15	function	open_session
+macros.c	20	function	session_name
+macros.c	25	function	use_session
+conditional.c	7	function	checked_add
+conditional.c	25	function	sum_table
+kernel_style.c	5	function	BIT_OF
+kernel_style.c	6	function	clamp_to
+kernel_style.c	10	function	scan_table
+kernel_style.c	26	class	packed_hdr
+kernel_style.c	31	function	start_up
+kernel_style.c	36	function	map_regs
+kernel_style.c	41	function	halt_now
+kernel_style.c	47	function	scale
+kernel_style.c	52	function	sys_poke
+kernel_style.c	57	function	compat_sys_peek
+kernel_style.c	62	function	helper_add
+kernel_style.c	67	function	widget_resize
+kernel_style.c	72	function	walk
+kernel_style.c	86	function	last_function
+kernel_style.c	91	function	__log_line
+kernel_style.c	96	function	link_ok

@@ -1,0 +1,37 @@
+# SCSS: everything CSS defines (see ../css/expected.tsv), plus
+#   @mixin and @function names -> function
+#   $variable assigned at the top level of the file -> variable
+#   %placeholder rule sets -> class
+# Not definitions: $variables local to a mixin, function, rule or control block,
+# nested rules (&__title, &:hover, .icon), @include/@extend uses, interpolated
+# selectors inside @each, @use, @if/@each, @font-face.
+# A rule set whose class or id contains interpolation (.#{$prefix}navbar,
+# #{$tag}-box, .box-#{$prefix}) is NOT a definition, at top level or nested:
+# the name is only known after compilation, so recording the source text
+# would index a name nothing can be searched for. (Before this rule six of ten
+# such rule sets were recorded and four of the same shape were not.)
+sample.scss	5	variable	$primary
+sample.scss	6	variable	$spacing
+sample.scss	9	variable	--surface
+sample.scss	10	variable	--text
+sample.scss	13	variable	$breakpoints
+sample.scss	18	function	respond
+sample.scss	25	function	button-variant
+sample.scss	30	function	rem
+sample.scss	34	function	z
+sample.scss	38	class	visually-hidden
+sample.scss	43	class	card-base
+sample.scss	48	class	spin
+sample.scss	52	class	card
+sample.scss	68	class	sidebar
+sample.scss	72	class	hidden
+sample.scss	95	variable	$z-layers
+interpolated.scss	1	variable	$prefix
+interpolated.scss	23	class	solid
+interpolated.scss	27	function	local-vars
+interpolated.scss	32	variable	$outside
+recovered.scss	3	variable	$gap
+recovered.scss	5	function	first
+recovered.scss	9	function	second
+recovered.scss	13	function	third
+recovered.scss	17	class	plain

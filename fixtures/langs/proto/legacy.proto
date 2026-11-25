@@ -1,0 +1,47 @@
+syntax = "proto2";
+
+package legacy;
+
+message Envelope {
+  required string id = 1;
+  optional bytes payload = 2 [default = "x"];
+  repeated Header headers = 3;
+
+  message Header {
+    required string key = 1;
+    optional string value = 2;
+  }
+
+  enum Kind {
+    option allow_alias = true;
+    UNKNOWN = 0;
+    DATA = 1 [deprecated = true];
+    BLOB = 1;
+  }
+
+  optional Kind kind = 4 [default = UNKNOWN];
+  extensions 100 to max;
+}
+
+extend Envelope {
+  optional string trace_id = 100;
+  repeated int32 hops = 101;
+}
+
+enum TopLevelMode {
+  MODE_OFF = 0;
+  MODE_ON = 1;
+}
+
+service Relay {
+  // Fire and forget.
+  rpc Send(Envelope) returns (Envelope) {}
+
+  rpc Watch(Envelope) returns (stream Envelope) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+service Metrics {
+  rpc Ping(Envelope) returns (Envelope);
+}

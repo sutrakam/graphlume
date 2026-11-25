@@ -1,0 +1,32 @@
+$prefix: "x-";
+
+.#{$prefix}navbar {
+  display: flex;
+  .#{$prefix}item {
+    color: red;
+  }
+}
+
+.#{$prefix}tabs,
+.tabs-alt {
+  margin: 0;
+}
+
+#{$tag}-box {
+  padding: 0;
+}
+
+.box-#{$prefix} {
+  padding: 0;
+}
+
+.solid {
+  border: 0;
+}
+
+@mixin local-vars {
+  $inside: 1px;
+  padding: $inside;
+}
+
+$outside: 2px;

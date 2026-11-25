@@ -1,0 +1,192 @@
+name: 'GraphLume Change-Safety Action'
+description: 'Code graph, PR blast radius, architecture checks and SARIF reports for pull requests. Local and deterministic.'
+author: 'Sutrakam'
+
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  version:
+    description: 'GraphLume release version to use (e.g. v1.0.0 or latest)'
+    required: false
+    default: 'v1.0.0'
+  fail-on:
+    description: 'Lowest blindspot or architecture severity that fails the check (high | medium | low | none)'
+    required: false
+    default: 'high'
+  accuracy:
+    description: 'Accuracy mode: auto (install and import SCIP compiler facts) or fast (heuristic only)'
+    required: false
+    default: 'auto'
+  comment-pr:
+    description: 'Whether to post or update the sticky pull request report comment'
+    required: false
+    default: 'true'
+  github-token:
+    description: 'GitHub token for PR comment updates and API calls'
+    required: false
+    default: ${{ github.token }}
+  sarif-out:
+    description: 'Path where the SARIF 2.1.0 report will be written'
+    required: false
+    default: 'graphlume-out/graphlume.sarif'
+  pr-report-out:
+    description: 'Path where the PR markdown report will be written'
+    required: false
+    default: 'graphlume-out/pr-report.md'
+  upload-index:
+    description: 'Upload the verified index as an Actions artifact named graphlume-index-<commit sha>, so developers and agents can run "graphlume index pull" instead of indexing locally. Use it on push events: on pull_request runs the commit is a merge commit nobody has checked out.'
+    required: false
+    default: 'false'
+  index-retention-days:
+    description: 'Days GitHub keeps the uploaded index artifact (1-90; 0 uses the repository default)'
+    required: false
+    default: '30'
+
+outputs:
+  sarif-path:
+    description: 'Path to the generated SARIF report file'
+    value: ${{ inputs.sarif-out }}
+  pr-report-path:
+    description: 'Path to the generated PR report file'
+    value: ${{ inputs.pr-report-out }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Ensure GraphLume Binary
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        ACTION_PATH: ${{ github.action_path }}
+      run: |
+        if command -v graphlume >/dev/null 2>&1; then
+          echo "Using existing graphlume binary: $(command -v graphlume)"
+          graphlume version || true
+        else
+          mkdir -p "${RUNNER_TEMP}/bin"
+          "${ACTION_PATH}/install.sh" --dir "${RUNNER_TEMP}/bin" --version "$VERSION"
+          echo "${RUNNER_TEMP}/bin" >> "$GITHUB_PATH"
+          export PATH="${RUNNER_TEMP}/bin:$PATH"
+          graphlume version || true
+        fi
+
+    - name: Index and Resolve Code Graph
+      shell: bash
+      run: |
+        mkdir -p graphlume-out
+        graphlume init
+        graphlume index
+        graphlume resolve
+
+    - name: Import Compiler Facts (SCIP)
+      if: inputs.accuracy == 'auto'
+      shell: bash
+      run: |
+        mkdir -p graphlume-out/scip
+        { graphlume indexers install --yes --out-dir graphlume-out/scip 2>&1 \
+            || echo "::warning::compiler indexers unavailable; graph edges remain heuristic"; } \
+          | tee graphlume-out/indexers.txt
+        imported=0
+        for f in graphlume-out/scip/*.scip; do
+          [ -f "$f" ] || continue
+          if graphlume scip import "$f"; then
+            imported=$((imported + 1))
+          else
+            echo "::warning::scip import of $(basename "$f") failed; edges remain heuristic"
+          fi
+        done
+        echo "Imported $imported compiler SCIP indexes"
+
+    - name: Verify Index Integrity
+      shell: bash
+      run: graphlume doctor --verify-index
+
+    - name: Export Index Snapshot
+      if: inputs.upload-index == 'true'
+      shell: bash
+      run: |
+        # The report directory is untracked in the workspace; hiding it here
+        # (locally, in .git/info/exclude) keeps the export from calling a
+        # clean checkout dirty. Nothing is committed or changed in the repo.
+        echo "graphlume-out/" >> "$(git rev-parse --git-path info/exclude)"
+        graphlume index export --out "${RUNNER_TEMP}/graphlume-index-artifact"
+
+    - name: Upload Index Artifact
+      if: inputs.upload-index == 'true'
+      uses: actions/upload-artifact@v7
+      with:
+        name: graphlume-index-${{ github.sha }}
+        path: ${{ runner.temp }}/graphlume-index-artifact
+        retention-days: ${{ inputs.index-retention-days }}
+        if-no-files-found: error
+        compression-level: 6
+
+    - name: Collect Architectural and Blindspot Findings
+      shell: bash
+      run: |
+        mkdir -p graphlume-out
+        graphlume --json arch > graphlume-out/arch.json
+        graphlume --json blindspots > graphlume-out/missed.json
+
+    - name: Compute Pull Request Impact
+      if: github.event_name == 'pull_request'
+      shell: bash
+      env:
+        BASE_REF: ${{ github.base_ref }}
+      run: |
+        if [ -n "$BASE_REF" ]; then
+          git fetch origin "$BASE_REF" --depth=1 || true
+          graphlume --json impact --base "origin/$BASE_REF" --head HEAD > graphlume-out/impact.json || true
+        fi
+
+    - name: Render PR and SARIF Reports
+      shell: bash
+      env:
+        SARIF_OUT: ${{ inputs.sarif-out }}
+        PR_OUT: ${{ inputs.pr-report-out }}
+      run: |
+        mkdir -p "$(dirname "$SARIF_OUT")" "$(dirname "$PR_OUT")"
+        graphlume report sarif --arch graphlume-out/arch.json --blindspots graphlume-out/missed.json --out "$SARIF_OUT"
+        if [ -f graphlume-out/impact.json ]; then
+          graphlume report pr --impact graphlume-out/impact.json --arch graphlume-out/arch.json --blindspots graphlume-out/missed.json --out "$PR_OUT"
+        else
+          graphlume report pr --arch graphlume-out/arch.json --blindspots graphlume-out/missed.json --out "$PR_OUT"
+        fi
+        if [ -f "$PR_OUT" ]; then
+          cat "$PR_OUT" >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+    - name: Post or Update Sticky PR Comment
+      if: inputs.comment-pr == 'true' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        REPO: ${{ github.repository }}
+        PR: ${{ github.event.pull_request.number }}
+        PR_OUT: ${{ inputs.pr-report-out }}
+      run: |
+        if command -v gh >/dev/null 2>&1 && [ -f "$PR_OUT" ]; then
+          id=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+            --jq '.[] | select(.body | contains("<!-- graphlume:pr-report -->")) | .id' | head -n 1)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$id" -F body=@"$PR_OUT"
+          else
+            gh api -X POST "repos/$REPO/issues/$PR/comments" -F body=@"$PR_OUT"
+          fi
+        fi
+
+    - name: Enforce Architecture Rules
+      if: inputs.fail-on != 'none'
+      shell: bash
+      env:
+        FAIL_ON: ${{ inputs.fail-on }}
+      run: graphlume arch --fail-on "$FAIL_ON"
+
+    - name: Audit Code Blindspots
+      if: inputs.fail-on != 'none'
+      shell: bash
+      env:
+        FAIL_ON: ${{ inputs.fail-on }}
+      run: graphlume blindspots --fail-on "$FAIL_ON"

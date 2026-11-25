@@ -1,0 +1,10 @@
+{
+  "is_error": true,
+  "result": {
+    "index_revision": 0,
+    "index_status": "",
+    "summary": ""
+  },
+  "text": "=== SYSTEM METADATA ===\nerror_code: internal\nunknown confidence \"bogus\": use exact, high, medium or low\nhint: GraphLume failed internally. The index is intact; fall back to search for this question and report the failure.\n",
+  "tool": "callers"
+}

@@ -1,0 +1,91 @@
+// Fixture schema. Every block form Prisma has, plus uses that are not definitions.
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch"]
+}
+
+generator docs {
+  provider = "prisma-docs-generator"
+  output   = "../docs"
+}
+
+enum Role {
+  USER
+  ADMIN @map("admin")
+  EDITOR
+
+  @@map("roles")
+}
+
+enum Status {
+  DRAFT
+  PUBLISHED
+}
+
+type Address {
+  street String
+  city   String
+  zip    String?
+}
+
+type GeoPoint {
+  lat Float
+  lng Float
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  name      String?
+  role      Role      @default(USER)
+  address   Address?
+  posts     Post[]
+  profile   Profile?
+  createdAt DateTime  @default(now())
+
+  @@index([email, name])
+  @@map("users")
+}
+
+model Profile {
+  id     Int    @id @default(autoincrement())
+  bio    String
+  user   User   @relation(fields: [userId], references: [id])
+  userId Int    @unique
+}
+
+model Post {
+  id         Int      @id @default(autoincrement())
+  title      String   @db.VarChar(200)
+  status     Status   @default(DRAFT)
+  author     User     @relation("Authored", fields: [authorId], references: [id], onDelete: Cascade)
+  authorId   Int
+  categories Category[]
+  location   GeoPoint?
+
+  @@unique([authorId, title])
+  @@fulltext([title])
+}
+
+model Category {
+  id    Int    @id
+  name  String
+  posts Post[]
+}
+
+view PublishedPost {
+  id    Int
+  title String
+  email String
+}
+
+view UserSummary {
+  id   Int    @unique
+  name String
+}

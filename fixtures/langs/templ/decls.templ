@@ -1,0 +1,71 @@
+package views
+
+import "context"
+
+const (
+	ModeLight = iota
+	ModeDark
+	ModeAuto
+)
+
+const maxRows, minRows = 100, 1
+
+var (
+	registry  = map[string]int{}
+	lastError error
+)
+
+type (
+	Handler func(ctx context.Context) error
+	Config  struct {
+		Title string
+		Rows  int
+	}
+	Source interface {
+		Fetch() ([]string, error)
+		Close() error
+	}
+)
+
+type Names = []string
+
+type Pair[K comparable, V any] struct {
+	Key   K
+	Value V
+}
+
+func Map[T, U any](in []T, f func(T) U) []U {
+	var out []U
+	for _, v := range in {
+		out = append(out, f(v))
+	}
+	return out
+}
+
+func (p *Pair[K, V]) Swap() {
+	const unused = 1
+	type local struct{ n int }
+	var scratch int
+	_ = scratch
+}
+
+func init() {
+	registry["a"] = 1
+}
+
+templ List[T any](items []T, render func(T) templ.Component) {
+	<ul>
+		for _, item := range items {
+			<li>@render(item)</li>
+		}
+	</ul>
+}
+
+templ Empty() {
+	<p>nothing here</p>
+}
+
+templ Badge(label string) {
+	{{ short := label[:1] }}
+	<span class="badge">{ short }</span>
+}

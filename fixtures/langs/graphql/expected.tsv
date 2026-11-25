@@ -1,0 +1,28 @@
+# Rule: object types, input types, enums and unions are a class; interfaces
+# are an interface; scalars are a type_alias; directive definitions, named
+# operations (query/mutation/subscription X) and fragments are a function.
+# Fields, arguments, enum values and input fields are not definitions; an
+# `extend ...` adds to a type and does not define it again; an anonymous
+# operation (`query { }` or a bare `{ }`) has no name. A symbol is on the line
+# of the keyword and name, never on the line of the """description""" above it.
+schema.graphql	7	type_alias	DateTime
+schema.graphql	9	type_alias	Json
+schema.graphql	12	function	auth
+schema.graphql	16	function	cacheFor
+schema.graphql	19	interface	Node
+schema.graphql	23	interface	Timestamped
+schema.graphql	29	class	User
+schema.graphql	38	class	Post
+schema.graphql	45	class	Role
+schema.graphql	51	class	Order
+schema.graphql	57	class	SearchResult
+schema.graphql	59	class	Empty
+schema.graphql	62	class	NewPost
+schema.graphql	67	class	PostFilter
+schema.graphql	72	class	Query
+schema.graphql	77	class	Mutation
+schema.graphql	81	class	Subscription
+schema.graphql	105	function	GetUser
+schema.graphql	117	function	CreatePost
+schema.graphql	123	function	OnPost
+schema.graphql	129	function	UserFields

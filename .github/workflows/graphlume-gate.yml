@@ -1,0 +1,142 @@
+name: GraphLume Change-Safety Gate
+
+# GraphLume checking itself. Manual only, and only for the repository owner.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Lowest blindspot / architecture severity that fails the build: high|medium|low.
+  GRAPHLUME_FAIL_ON: high
+  # auto: import compiler-backed facts first; fast: heuristic edges only.
+  GRAPHLUME_ACCURACY: auto
+
+jobs:
+  gate:
+    name: Change-Safety Verification
+    if: github.triggering_actor == 'satyendrakumarsingh'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write   # the sticky report comment
+      security-events: write # SARIF upload to code scanning
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go Environment
+        id: setup-go
+        uses: actions/setup-go@v7
+        with:
+          go-version: '1.26.x'
+          cache: true
+
+      - name: Build GraphLume
+        run: go build -trimpath -ldflags="-s -w" -o ./bin/graphlume ./cmd/graphlume
+
+      - name: Index and Resolve
+        run: |
+          ./bin/graphlume init
+          ./bin/graphlume index
+          ./bin/graphlume resolve
+
+      - name: Pin Compiler Indexers
+        if: env.GRAPHLUME_ACCURACY == 'auto'
+        run: |
+          mkdir -p graphlume-out
+          ./bin/graphlume indexers pins > graphlume-out/indexer-pins.txt
+
+      - name: Cache Compiler Indexers
+        if: env.GRAPHLUME_ACCURACY == 'auto'
+        uses: actions/cache@v6
+        with:
+          path: ~/go/bin/scip-go
+          key: graphlume-indexers-${{ runner.os }}-go${{ steps.setup-go.outputs.go-version }}-${{ hashFiles('graphlume-out/indexer-pins.txt') }}
+
+      - name: Import Compiler Facts
+        if: env.GRAPHLUME_ACCURACY == 'auto'
+        run: |
+          mkdir -p graphlume-out
+          { ./bin/graphlume indexers install --yes --out-dir graphlume-out/scip 2>&1 \
+              || echo "::warning::compiler indexers unavailable; the report uses heuristic edges"; } \
+            | tee graphlume-out/indexers.txt
+          imported=0
+          failed=0
+          for f in graphlume-out/scip/*.scip; do
+            [ -f "$f" ] || continue
+            if ./bin/graphlume scip import "$f"; then
+              imported=$((imported + 1))
+            else
+              echo "::warning::scip import of $(basename "$f") failed; its edges stay heuristic"
+              failed=$((failed + 1))
+            fi
+          done
+          {
+            echo "### Compiler-backed precision"
+            echo "imported: $imported, failed: $failed"
+            echo '```'
+            cat graphlume-out/indexers.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify Index Integrity
+        run: ./bin/graphlume doctor --verify-index
+
+      - name: Collect Findings
+        run: |
+          mkdir -p graphlume-out
+          ./bin/graphlume --json arch > graphlume-out/arch.json
+          ./bin/graphlume --json blindspots > graphlume-out/missed.json
+
+      - name: Impact Analysis of the Pull Request
+        if: github.event_name == 'pull_request'
+        run: ./bin/graphlume --json impact --base "origin/${{ github.base_ref }}" --head HEAD > graphlume-out/impact.json
+
+      - name: Render Reports
+        run: |
+          ./bin/graphlume report sarif --arch graphlume-out/arch.json --blindspots graphlume-out/missed.json --out graphlume-out/graphlume.sarif
+          if [ -f graphlume-out/impact.json ]; then
+            ./bin/graphlume report pr --impact graphlume-out/impact.json --arch graphlume-out/arch.json --blindspots graphlume-out/missed.json --out graphlume-out/pr-report.md
+          else
+            ./bin/graphlume report pr --arch graphlume-out/arch.json --blindspots graphlume-out/missed.json --out graphlume-out/pr-report.md
+          fi
+          cat graphlume-out/pr-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload SARIF to Code Scanning
+        if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: graphlume-out/graphlume.sarif
+          category: graphlume
+
+      - name: Post Sticky PR Comment
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          id=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+            --jq '.[] | select(.body | contains("<!-- graphlume:pr-report -->")) | .id' | head -n 1)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$id" -F body=@graphlume-out/pr-report.md
+          else
+            gh api -X POST "repos/$REPO/issues/$PR/comments" -F body=@graphlume-out/pr-report.md
+          fi
+
+      - name: Report Event Topology
+        run: ./bin/graphlume events
+
+      - name: Enforce Architecture Rules
+        run: ./bin/graphlume arch --fail-on "$GRAPHLUME_FAIL_ON"
+
+      - name: Audit Code Blindspots
+        run: ./bin/graphlume blindspots --fail-on "$GRAPHLUME_FAIL_ON"

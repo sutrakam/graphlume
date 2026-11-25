@@ -1,0 +1,12 @@
+# Circom: functions (function), templates (class) and the 'component main' entry point (function, named main).
+# Not listed: signals, variables, component instances and calls, which are locals or uses.
+sample.circom	5	function	log2
+sample.circom	18	function	twice
+sample.circom	22	class	Num2Bits
+sample.circom	36	class	Switcher
+sample.circom	48	class	Sum
+sample.circom	58	class	Gate
+sample.circom	64	class	Splitter
+sample.circom	73	class	Wrapper
+sample.circom	88	class	Tagged
+sample.circom	99	function	main

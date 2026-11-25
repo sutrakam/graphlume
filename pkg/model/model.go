@@ -1,0 +1,500 @@
+// Package model defines GraphLume's language-independent domain entities.
+//
+// Two invariants govern everything here:
+//
+//  1. Every fact carries provenance. A relationship discovered by a compiler is
+//     not the same kind of fact as one guessed from a name, and the difference
+//     must survive all the way to the agent that consumes it. See Confidence.
+//
+//  2. Nothing in this package parses, queries, or performs I/O. It is the shared
+//     vocabulary between the acquisition, registry, graph and context layers.
+package model
+
+import "fmt"
+
+// Confidence records how strongly a fact is believed, and why.
+//
+// This is not decoration. GraphLume's core promise is that an AI agent can tell
+// a proven relationship from a plausible one; an impact analysis that presents
+// guesses as facts is worse than no impact analysis at all.
+type Confidence string
+
+const (
+	// ConfidenceExact means a compiler proved it. Sourced from a SCIP index
+	// produced by a real typechecker. Safe to act on without verification.
+	ConfidenceExact Confidence = "exact"
+
+	// ConfidenceHigh means resolved through an explicit import plus an
+	// unambiguous receiver type. Wrong only in unusual cases (shadowing,
+	// reflection, runtime dispatch).
+	ConfidenceHigh Confidence = "high"
+
+	// ConfidenceMedium means the target was resolved by type inference where
+	// more than one candidate existed and one was clearly preferred.
+	ConfidenceMedium Confidence = "medium"
+
+	// ConfidenceLow means resolved by weak signal — matching name in an
+	// imported package, no type confirmation. Report it, but never let it
+	// drive a risk score on its own.
+	ConfidenceLow Confidence = "low"
+)
+
+// Rank orders confidence from weakest to strongest so callers can threshold
+// (e.g. "only expand the graph through edges >= high").
+func (c Confidence) Rank() int {
+	switch c {
+	case ConfidenceExact:
+		return 4
+	case ConfidenceHigh:
+		return 3
+	case ConfidenceMedium:
+		return 2
+	case ConfidenceLow:
+		return 1
+	default:
+		return 0
+	}
+}
+
+// AtLeast reports whether c is at least as strong as min.
+func (c Confidence) AtLeast(min Confidence) bool { return c.Rank() >= min.Rank() }
+
+// Valid reports whether c is a recognised confidence level.
+func (c Confidence) Valid() bool { return c.Rank() > 0 }
+
+// SourceType records the kind of evidence a fact came from. Spec §9.
+type SourceType string
+
+const (
+	SourceCompiler   SourceType = "compiler"    // SCIP index — authoritative
+	SourceSourceCode SourceType = "source_code" // parsed from a syntax tree
+	SourceGit        SourceType = "git"         // commit history
+	SourceConfig     SourceType = "config"      // developer-declared config
+	SourceRuntime    SourceType = "runtime"     // OpenTelemetry spans
+	SourceExternal   SourceType = "external"    // dependency manifests, advisories
+	SourceInferred   SourceType = "inferred"    // heuristic with no direct evidence
+)
+
+// EntityKind enumerates the node types in the knowledge graph. Spec §8.
+type EntityKind string
+
+const (
+	KindRepository    EntityKind = "repository"
+	KindModule        EntityKind = "module"
+	KindDirectory     EntityKind = "directory"
+	KindFile          EntityKind = "file"
+	KindPackage       EntityKind = "package"
+	KindClass         EntityKind = "class"
+	KindInterface     EntityKind = "interface"
+	KindFunction      EntityKind = "function"
+	KindMethod        EntityKind = "method"
+	KindField         EntityKind = "field"
+	KindConstant      EntityKind = "constant"
+	KindVariable      EntityKind = "variable"
+	KindTypeAlias     EntityKind = "type_alias"
+	KindEndpoint      EntityKind = "endpoint"
+	KindTable         EntityKind = "table"
+	KindColumn        EntityKind = "column"
+	KindEvent         EntityKind = "event"
+	KindTest          EntityKind = "test"
+	KindConfiguration EntityKind = "configuration"
+	KindDependency    EntityKind = "dependency"
+	KindCommit        EntityKind = "commit"
+)
+
+// EdgeKind enumerates relationship types in the knowledge graph. Spec §8.
+type EdgeKind string
+
+const (
+	EdgeContains   EdgeKind = "CONTAINS"
+	EdgeImports    EdgeKind = "IMPORTS"
+	EdgeReferences EdgeKind = "REFERENCES"
+	EdgeCalls      EdgeKind = "CALLS"
+	EdgeDocuments  EdgeKind = "DOCUMENTS"
+	// EdgeInstantiates is a constructor call recorded against the TYPE it
+	// constructs: `Account(...)`, `Type::new()`, `new X()`. Kept apart from
+	// EdgeCalls so that "what calls this function" is answered from edges that
+	// point at callables, and "what creates one of these" from edges that
+	// point at types.
+	EdgeInstantiates EdgeKind = "INSTANTIATES"
+	EdgeExtends      EdgeKind = "EXTENDS"
+	EdgeImplements   EdgeKind = "IMPLEMENTS"
+	EdgeDependsOn    EdgeKind = "DEPENDS_ON"
+	EdgeExposes      EdgeKind = "EXPOSES"
+	EdgeReads        EdgeKind = "READS"
+	EdgeWrites       EdgeKind = "WRITES"
+	EdgePublishes    EdgeKind = "PUBLISHES"
+	EdgeConsumes     EdgeKind = "CONSUMES"
+	EdgeTestedBy     EdgeKind = "TESTED_BY"
+	EdgeConfigures   EdgeKind = "CONFIGURED_BY"
+	EdgeTracesTo     EdgeKind = "TRACES_TO"
+	EdgeViolates     EdgeKind = "VIOLATES"
+	EdgeOwnedBy      EdgeKind = "OWNED_BY"
+	EdgeChangedBy    EdgeKind = "CHANGED_BY"
+)
+
+// Position is a 1-indexed line and 0-indexed byte column in a file.
+type Position struct {
+	Line int `json:"line"`
+	Col  int `json:"col"`
+}
+
+// Range is a half-open span within a single file.
+type Range struct {
+	Start Position `json:"start"`
+	End   Position `json:"end"`
+}
+
+// Evidence points at the exact source location that justifies a fact. Without
+// it a relationship is an assertion; with it the agent can verify.
+type Evidence struct {
+	FilePath string     `json:"file_path"`
+	Range    Range      `json:"range"`
+	Source   SourceType `json:"source"`
+	// Detail optionally names the concrete mechanism, e.g. "scip:
+	// scip-java 0.10.3" or "import + receiver type".
+	Detail string `json:"detail,omitempty"`
+}
+
+// File is an indexed source file.
+type File struct {
+	ID          int64  `json:"id"`
+	Path        string `json:"path"` // repo-relative, always forward slashes
+	Language    string `json:"language"`
+	ContentHash string `json:"content_hash"` // sha256 of bytes
+	SizeBytes   int64  `json:"size_bytes"`
+	ModTimeUnix int64  `json:"mod_time_unix"`
+	// ParseStatus is ok | partial | failed | skipped and describes what the
+	// parser did, not what was extracted. ParseError starts with a
+	// ParseReason token whenever the status is not ok. See parsestatus.go.
+	ParseStatus string `json:"parse_status"`
+	ParseError  string `json:"parse_error,omitempty"`
+
+	// DetectedBy records how Language was decided: override | filename |
+	// extension | shebang | content | neighbours | extension_ambiguous, or
+	// empty when nothing was detected. "extension_ambiguous" means Language is
+	// the default for an extension several languages share and no content rule
+	// confirmed it, so it is a guess rather than a finding.
+	DetectedBy string `json:"detected_by,omitempty"`
+}
+
+// Arity is a parameter or argument count that MAY BE UNKNOWN.
+//
+// A plain int cannot carry this fact. Its zero value is 0, which is a perfectly
+// ordinary arity — `Close()` takes none — so a producer that never set the
+// field would be indistinguishable from one reporting a niladic call. That
+// distinction is the whole safety property here: a symbol imported from SCIP,
+// a Symbol built by a test, or a language whose parser has no arity query must
+// read as "no information", never as "takes nothing".
+//
+// So the encoding is offset by one: the zero value is ArityUnknown, and a known
+// count of n is stored as n+1. Nothing outside this type needs to know that —
+// build one with KnownArity and read it with Known and Count.
+type Arity int
+
+// ArityUnknown is the zero value, meaning no count was determined.
+const ArityUnknown Arity = 0
+
+// KnownArity returns the Arity for a determined count. A negative count is
+// nonsense and yields ArityUnknown rather than a value that would compare equal
+// to some real arity.
+func KnownArity(n int) Arity {
+	if n < 0 {
+		return ArityUnknown
+	}
+	return Arity(n + 1)
+}
+
+// Known reports whether a count was determined.
+func (a Arity) Known() bool { return a > 0 }
+
+// Count is the determined count. Meaningless unless Known reports true.
+func (a Arity) Count() int { return int(a) - 1 }
+
+// Symbol is a named, addressable code entity.
+type Symbol struct {
+	ID   int64      `json:"id"`
+	Kind EntityKind `json:"kind"`
+	Name string     `json:"name"` // e.g. "updateStatus"
+
+	// FQN is the fully-qualified name, unique within a repository. For SCIP
+	// symbols this is the SCIP symbol string, which makes exact and heuristic
+	// facts about the same entity converge on one node.
+	FQN string `json:"fqn"`
+
+	FileID    int64  `json:"file_id"`
+	Range     Range  `json:"range"`
+	Signature string `json:"signature,omitempty"`
+	Doc       string `json:"doc,omitempty"`
+	Exported  bool   `json:"exported"`
+
+	// ParamCount is how many parameters this symbol declares, where the parser
+	// could determine that. ArityUnknown everywhere else — for non-callables,
+	// for variadic and defaulted signatures, for languages with no arity query,
+	// and for symbols that came from SCIP rather than from a syntax tree.
+	//
+	// Read by internal/resolve/infer to PREFER a candidate whose parameter
+	// count matches the call site's argument count. Only to prefer: an arity
+	// mismatch is never grounds for removing a candidate. See A4 in
+	// internal/resolve/infer/resolver.go for why that distinction is the whole
+	// design.
+	ParamCount Arity `json:"param_count,omitempty"`
+
+	// ReturnType is the plain type name a function or method declares it
+	// returns, where internal/parse read one: `Order` for `Order find(...)`,
+	// `fun find(): Order`, `fn find() -> Order`. Empty for anything else,
+	// including a generic or wrapped type the parser does not unwrap. Read by
+	// internal/resolve/infer to type a variable assigned from a call to it.
+	ReturnType string `json:"return_type,omitempty"`
+
+	// Private is true where internal/parse read the language's own marker that
+	// the definition is reachable only from what encloses it: `private` on a
+	// Java, C#, Kotlin or PHP member, `defn-` in Clojure, `static` on a C
+	// function. False is "not read as private", not "public". Migration
+	// migration 0001.
+	Private bool `json:"private,omitempty"`
+
+	// Trait is true for a PHP trait, which is indexed as an interface and is
+	// not one: its methods are implementations. Migration 0001.
+	Trait bool `json:"trait,omitempty"`
+
+	// Singleton is true for a Ruby method defined on the class or module
+	// itself (`def self.x`, `class << self; def x`), not on its instances.
+	// False is "not read as singleton", which for every other language is
+	// all it can say. Bit 16 of symbols.flags.
+	Singleton bool `json:"singleton,omitempty"`
+
+	// Conditional is true for a definition that exists in some builds and not
+	// in others. Rust: under a `#[cfg(...)]` attribute, on itself or on an
+	// item that encloses it. C and C++: a function definition written inside a
+	// preprocessor conditional (`#if`, `#ifdef`, `#else`), other than a header
+	// guard or `#ifdef __cplusplus`. Two definitions of one name that are both
+	// conditional are usually alternatives of which a build keeps one, so a
+	// call that reaches either cannot say which (infer/rustcfg.go for Rust).
+	// Bit 4 of symbols.flags.
+	Conditional bool `json:"conditional,omitempty"`
+
+	// RefImpl is true for a Rust method declared in an impl whose self type is a
+	// reference: `impl<'a, T> IntoIterator for &'a Vec<T>`. The same trait is
+	// usually also implemented for the owned type, under the same qualified name,
+	// and which one a call reaches depends on whether the receiver is borrowed.
+	RefImpl bool `json:"ref_impl,omitempty"`
+
+	// Confidence describes how reliably this symbol was extracted. Symbols are
+	// usually high or exact; a Tier-1 generic extraction may be medium.
+	Confidence Confidence `json:"confidence"`
+	Source     SourceType `json:"source"`
+}
+
+// Edge is a typed, provenance-carrying relationship between two entities.
+//
+// The Confidence and Evidence fields are the reason this type exists rather
+// than a bare (src, dst, kind) triple.
+type Edge struct {
+	ID         int64      `json:"id"`
+	SrcID      int64      `json:"src_id"`
+	DstID      int64      `json:"dst_id"`
+	Kind       EdgeKind   `json:"kind"`
+	Confidence Confidence `json:"confidence"`
+	Evidence   Evidence   `json:"evidence"`
+
+	// IndexRunID ties the edge to the run that produced it, which is what
+	// makes the two-phase atomic swap and stale-edge removal possible.
+	IndexRunID int64 `json:"index_run_id"`
+}
+
+// Validate rejects edges that would corrupt the graph. The registry calls this
+// before every write; the doctor gate re-checks it across the whole store.
+func (e Edge) Validate() error {
+	if e.SrcID == 0 || e.DstID == 0 {
+		return fmt.Errorf("edge %s: src and dst must be set (got %d -> %d)", e.Kind, e.SrcID, e.DstID)
+	}
+	if e.Kind == "" {
+		return fmt.Errorf("edge %d -> %d: kind must be set", e.SrcID, e.DstID)
+	}
+	if !e.Confidence.Valid() {
+		return fmt.Errorf("edge %s %d -> %d: invalid confidence %q", e.Kind, e.SrcID, e.DstID, e.Confidence)
+	}
+	if e.Confidence == ConfidenceExact && e.Evidence.Source != SourceCompiler {
+		return fmt.Errorf("edge %s %d -> %d: confidence=exact requires source=compiler, got %q",
+			e.Kind, e.SrcID, e.DstID, e.Evidence.Source)
+	}
+	return nil
+}
+
+// IndexStatus is the lifecycle state of an index. Spec §37.
+type IndexStatus string
+
+const (
+	StatusIndexing IndexStatus = "indexing"
+	StatusReady    IndexStatus = "ready"
+	StatusDegraded IndexStatus = "degraded" // usable, but some files failed to parse
+	StatusFailed   IndexStatus = "failed"
+)
+
+// IndexState records how much of what a run DISCOVERED the run actually
+// covered.
+//
+// It is orthogonal to IndexStatus, which is the run's lifecycle. A run can be
+// ready and partial, or degraded and complete, and that pair is precisely why
+// this is a second field rather than two more values of the first: an index
+// that some files failed to parse in is a different fact from an index that
+// silently lost files, and a reader must be able to tell them apart.
+type IndexState string
+
+const (
+	// IndexStateComplete means every discovered file reached one of the three
+	// terminal outcomes: indexed, skipped, or recorded as failed.
+	IndexStateComplete IndexState = "complete"
+
+	// IndexStatePartial means the run did not cover everything it discovered.
+	// Still published — a partial index beats none — but never presented as a
+	// full picture of the repository.
+	IndexStatePartial IndexState = "partial"
+)
+
+// IndexRun records one indexing pass. A run is only visible to readers once it
+// is committed, which is what prevents a crash from exposing a half-built index.
+type IndexRun struct {
+	ID             int64       `json:"id"`
+	Status         IndexStatus `json:"status"`
+	StartedUnix    int64       `json:"started_unix"`
+	FinishedUnix   int64       `json:"finished_unix,omitempty"`
+	GitRevision    string      `json:"git_revision,omitempty"`
+	FilesIndexed   int64       `json:"files_indexed"`
+	SymbolsFound   int64       `json:"symbols_found"`
+	EdgesFound     int64       `json:"edges_found"`
+	ParseFailures  int64       `json:"parse_failures"`
+	AccuracyMode   string      `json:"accuracy_mode"` // fast | auto | exact
+	RegistryDigest string      `json:"registry_digest,omitempty"`
+	Error          string      `json:"error,omitempty"`
+
+	// ProducerVersion is the build that wrote this run.
+	//
+	// An index is data PLUS the resolution rules that produced it, and those
+	// rules change between builds. Empty means the run predates the stamp, which
+	// is a different claim from a version that simply differs: the first is
+	// unknown provenance, the second is known-stale.
+	ProducerVersion string `json:"producer_version,omitempty"`
+
+	// FilesDiscovered is what the walker handed the pipeline, which is the
+	// denominator FilesIndexed alone cannot supply.
+	FilesDiscovered int64 `json:"files_discovered"`
+
+	// IndexState is the completeness verdict. Empty only on a run read from a
+	// database written before this was recorded.
+	IndexState IndexState `json:"index_state"`
+
+	// FilesUnaccounted is how many discovered files reached none of the three
+	// terminal outcomes. Zero on a healthy run; a negative value means a file
+	// was counted twice, which is a different bug with the same consequence.
+	FilesUnaccounted int64 `json:"files_unaccounted"`
+
+	// RecoveredPanics is how many parser extractor panics were safely recovered during indexing.
+	RecoveredPanics int64 `json:"recovered_panics,omitempty"`
+}
+
+// Complete reports whether the run covered everything it discovered.
+//
+// A run recorded before completeness was measured has an empty IndexState and
+// reads as complete: it made no claim either way, and relabelling every
+// existing index as suspect on upgrade would be a louder lie than the silence.
+func (r IndexRun) Complete() bool { return r.IndexState != IndexStatePartial }
+
+// DefaultFQN is the fully-qualified name given to a symbol whose extractor did
+// not supply one.
+//
+// It exists so the rule has ONE definition. It is applied in two places that
+// must agree — the indexing sink, which persists symbols, and the analyzer,
+// which attributes SQL statements to the definition that runs them by FQN — and
+// when they disagreed the analyzer attributed nothing: it looked up names the
+// sink had not assigned yet, found none, and produced seven bound table
+// accesses with zero edges between them.
+//
+// Path-qualified rather than bare, because a bare name is not unique in a
+// repository and the registry digest depends on this being stable across runs.
+func DefaultFQN(path, name string) string { return path + ":" + name }
+
+// The shape of a call's receiver: what stands before the dot, if anything.
+//
+// internal/parse writes one of these beside every call reference and
+// internal/resolve/infer reads it; the vocabulary is closed and is the same one
+// migration 0001 documents for symbol_references.receiver_kind.
+// The empty string means the shape was not recorded.
+const (
+	// ReceiverBare is `f()`: the source wrote no receiver.
+	ReceiverBare = "bare"
+	// ReceiverName is `x.f()`: one identifier, as written.
+	ReceiverName = "name"
+	// ReceiverPath is `a.b.f()`: identifiers joined by the member operator.
+	ReceiverPath = "path"
+	// ReceiverScope is `a::f()` or `a::b::f()`: qualified through the
+	// language's scope operator, which names a module or a type, never a value.
+	ReceiverScope = "scope"
+	// ReceiverSelf is `self.f()` or `this.f()`: the enclosing instance or type.
+	ReceiverSelf = "self"
+	// ReceiverSuper is `super.f()`, `super().f()` or `base.f()`.
+	ReceiverSuper = "super"
+	// ReceiverType is `x.f()` where the source states x's type; the reference's
+	// receiver holds the type, not the variable.
+	ReceiverType = "type"
+	// ReceiverValue is `x.f()` where x is a variable or parameter the enclosing
+	// code declares without stating a type. It is a value, so it is never an
+	// import, a module or a type, whatever its name happens to match.
+	ReceiverValue = "value"
+	// ReceiverExpr is a call on an expression with no name: `g().f()`,
+	// `a[i].f()`. The reference's receiver holds OpaqueReceiver.
+	ReceiverExpr = "expr"
+	// ReceiverImplementer marks a supertype reference whose declaring type is
+	// not a symbol on its line: Rust's `impl Trait for Type`. The reference's
+	// receiver holds the type's name, and the reference is no call.
+	ReceiverImplementer = "implementer"
+)
+
+// OpaqueReceiver is the receiver text recorded with ReceiverExpr. Not a valid
+// identifier in any language, so it cannot collide with a real receiver.
+const OpaqueReceiver = "?"
+
+// The bits of symbol_references.flags (migration 0001).
+const (
+	// ReferenceFlagBlock marks a call that passes a block. Read for Ruby.
+	ReferenceFlagBlock = 1
+)
+
+// The bits of symbols.flags (migration 0001).
+const (
+	SymbolFlagPrivate = 1
+	SymbolFlagTrait   = 2
+	// SymbolFlagConditional: the definition exists in some builds and not in
+	// others: Rust under a `#[cfg(...)]` attribute (on itself or on something
+	// that encloses it), C and C++ inside a preprocessor conditional. One bit
+	// for the one concept; see Symbol.Conditional.
+	SymbolFlagConditional = 4
+	// SymbolFlagRefImpl: a Rust method of an `impl Trait for &T` (or `&mut T`),
+	// whose receiver is a reference, as opposed to the same trait implemented
+	// for T. See Symbol.RefImpl.
+	SymbolFlagRefImpl = 8
+	// SymbolFlagSingleton: a Ruby method defined on the class or module itself.
+	SymbolFlagSingleton = 16
+)
+
+// Flags is the symbol's bit set as the index stores it.
+func (s Symbol) Flags() int {
+	f := 0
+	if s.Private {
+		f |= SymbolFlagPrivate
+	}
+	if s.Trait {
+		f |= SymbolFlagTrait
+	}
+	if s.Conditional {
+		f |= SymbolFlagConditional
+	}
+	if s.RefImpl {
+		f |= SymbolFlagRefImpl
+	}
+	if s.Singleton {
+		f |= SymbolFlagSingleton
+	}
+	return f
+}

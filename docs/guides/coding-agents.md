@@ -1,0 +1,182 @@
+# Coding agents
+
+GraphLume is an MCP server. It speaks stdio (`graphlume --project <repo> serve`)
+for agents that launch a local server, and Streamable HTTP
+(`graphlume serve --http 127.0.0.1:7788`) for agents that only connect to a URL.
+Any MCP client can use one of the two. This page lists every
+agent we know of, how GraphLume reaches it, and what is missing for the few that
+cannot use it yet.
+
+| Section | What is in it |
+|---|---|
+| [Configured automatically](#configured-automatically) | 30 agents that `graphlume install` writes the config for |
+| [Set up by hand](#set-up-by-hand) | Agents configured through their own command or settings screen |
+| [Agents without local MCP](#agents-without-local-mcp) | Aider, Plandex, ChatGPT, Android Studio, and how each is served |
+| [Remote MCP over HTTP](#remote-mcp-over-http) | `graphlume serve --http`: tokens, hosts, tunnels |
+| [Guidance files](#guidance-files) | What `--rules` writes so the agent reaches for the graph first |
+| [How `graphlume install` edits config files](#how-graphlume-install-edits-config-files) | The merge rules that keep your other servers safe |
+| [Adding an agent](#adding-an-agent) | How to add support for one we have missed |
+
+## Configured automatically
+
+```bash
+graphlume install --list      # every supported agent, which are detected here, and the file each uses
+graphlume install --dry-run   # what would change, without writing
+graphlume install --rules     # write the configs and the guidance files
+graphlume install --only claude-code --rules --no-agents-md # configure specific agent only
+```
+
+An agent is detected when its config file, its config directory or its command
+exists. `--create` writes configs for agents that are not detected. Paths below
+are for macOS and Linux; `~/.config` follows `XDG_CONFIG_HOME`, and Windows uses
+`%APPDATA%` where the agent does.
+
+| Agent | Kind | Config file | Format |
+|---|---|---|---|
+| [Amp](https://ampcode.com/docs/customize/mcp) | CLI, editor | `~/.config/amp/settings.json` | JSON, key `amp.mcpServers` |
+| [Antigravity](https://antigravity.google/docs/mcp) | Desktop | `~/.gemini/config/mcp_config.json` (and the earlier `~/.gemini/antigravity/mcp_config.json` if present) | JSON, `mcpServers` |
+| [Augment (Auggie)](https://docs.augmentcode.com/cli/integrations) | CLI | `~/.augment/settings.json` | JSON, `mcpServers` |
+| [Claude Code](https://code.claude.com/docs/en/mcp) | CLI | `~/.claude.json` | JSON, `mcpServers` |
+| [Claude Desktop](https://modelcontextprotocol.io/docs/develop/connect-local-servers) | Desktop | `claude_desktop_config.json` in the app's support folder | JSON, `mcpServers` |
+| [Cline CLI](https://docs.cline.bot/mcp/configuring-mcp-servers) | CLI | `~/.cline/data/settings/cline_mcp_settings.json` | JSON, `mcpServers` |
+| [CodeBuddy CLI](https://www.workbuddy.ai/docs/cli/mcp) | CLI | `~/.codebuddy/mcp.json` | JSON, `mcpServers` |
+| [Codebuff](https://www.codebuff.com/docs/tips/mcp-servers) | CLI | `~/.agents/mcp.json` | JSON, `mcpServers` |
+| [Codex CLI](https://learn.chatgpt.com/docs/extend/mcp?surface=cli) | CLI, desktop, IDE | `~/.codex/config.toml` (follows `CODEX_HOME`) | TOML, `[mcp_servers.graphlume]` |
+| [Continue](https://docs.continue.dev/customize/deep-dives/mcp) | IDE, CLI | `.continue/mcpServers/graphlume.yaml` in the project | YAML block file |
+| [Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers) | CLI | `~/.copilot/mcp-config.json` | JSON, `mcpServers`, `type: local` |
+| [Cursor](https://cursor.com/docs/context/mcp) | Desktop, CLI | `~/.cursor/mcp.json` | JSON, `mcpServers` |
+| [Devin Desktop](https://docs.devin.ai/windsurf/plugins/cascade/mcp.md) | Desktop | `~/.config/devin/mcp_config.json` | JSON, `mcpServers` |
+| [Factory Droid](https://docs.factory.com/cli/configuration/mcp) | CLI | `~/.factory/mcp.json` | JSON, `mcpServers` |
+| [Gemini CLI](https://geminicli.com/docs/tools/mcp-server/) | CLI | `~/.gemini/settings.json` | JSON, `mcpServers` |
+| [Goose](https://goose-docs.ai/docs/guides/config-files) | CLI, desktop | `~/.config/goose/config.yaml` | YAML, `extensions.graphlume` |
+| [Junie](https://junie.jetbrains.com/docs/junie-cli-mcp-configuration.html) | CLI, JetBrains IDEs | `~/.junie/mcp/mcp.json` | JSON, `mcpServers` |
+| [Kilo Code](https://kilo.ai/docs/features/mcp/using-mcp-in-kilo-code) | CLI, VS Code | `~/.config/kilo/kilo.json` | JSON, key `mcp`, `type: local` |
+| [Kimi Code CLI](https://www.kimi.com/code/docs/en/kimi-code-cli/customization/mcp.html) | CLI | `~/.kimi-code/mcp.json` (follows `KIMI_CODE_HOME`) | JSON, `mcpServers` |
+| [Kiro](https://kiro.dev/docs/mcp/configuration/) | Desktop, CLI | `~/.kiro/settings/mcp.json` | JSON, `mcpServers` |
+| [LM Studio](https://lmstudio.ai/docs/app/mcp) | Desktop | `~/.lmstudio/mcp.json` | JSON, `mcpServers` |
+| [mcphub.nvim](https://ravitemer.github.io/mcphub.nvim/mcp/servers_json.html) | Neovim (avante, CodeCompanion) | `~/.config/mcphub/servers.json` | JSON, `mcpServers` |
+| [Qoder CLI](https://docs.qoder.com/cli/mcp-servers) | CLI | `~/.qoder/settings.json` | JSON, `mcpServers` |
+| [Qwen Code](https://qwenlm.github.io/qwen-code-docs/en/users/features/mcp/) | CLI | `~/.qwen/settings.json` | JSON, `mcpServers` |
+| [Tabnine CLI](https://docs.tabnine.com/main/getting-started/tabnine-cli/features/mcp-server-config) | CLI | `~/.tabnine/agent/settings.json` | JSON, `mcpServers` |
+| [Visual Studio](https://learn.microsoft.com/en-us/visualstudio/ide/mcp-servers) | Windows IDE | `%USERPROFILE%\.mcp.json` | JSON, key `servers` |
+| [VS Code (Copilot agent mode)](https://code.visualstudio.com/docs/agents/reference/mcp-configuration) | Editor | `Code/User/mcp.json` in the user settings folder | JSON, key `servers`, `type: stdio` |
+| [Warp](https://docs.warp.dev/agent-platform/warp-agents/agent-context/mcp) | Terminal | `~/.warp/.mcp.json` | JSON, `mcpServers` |
+| [Windsurf and Windsurf Next](https://docs.devin.ai/windsurf/plugins/cascade/mcp.md) | Desktop | `~/.codeium/windsurf/mcp_config.json`, `~/.codeium/windsurf-next/mcp_config.json` | JSON, `mcpServers` |
+| [Zed](https://zed.dev/docs/ai/mcp) | Editor (macOS, Linux) | `~/.config/zed/settings.json` | JSON, key `context_servers` |
+
+Restart the agent after `graphlume install` so it reloads its MCP servers.
+
+## Set up by hand
+
+These agents keep MCP servers in a settings screen, a database or a per-project
+file, or add them through their own command. `graphlume install --list` prints each
+step with your project path already filled in.
+
+| Agent | Step |
+|---|---|
+| [Amazon Q Developer CLI](https://docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/command-line-mcp-config-CLI.html) | `q mcp add --name graphlume --command graphlume --args '["--project","/path/to/repo","serve"]'` |
+| [Cline (VS Code extension)](https://docs.cline.bot/mcp/configuring-mcp-servers) | MCP Servers, Configure, then add the `graphlume` entry under `mcpServers` |
+| [Crush](https://github.com/charmbracelet/crush/blob/main/docs/config/README.md) | `crush mcp add graphlume --type stdio --command graphlume --args --project --args /path/to/repo --args serve` |
+| [Eclipse (Copilot)](https://github.blog/changelog/2025-05-16-agent-mode-and-mcp-support-for-copilot-in-jetbrains-eclipse-and-xcode-now-in-public-preview/) | Preferences, GitHub Copilot, MCP, then paste the `servers` entry |
+| [Jan](https://www.jan.ai/docs/agent/cli) | `jan cli mcp add graphlume --command graphlume --arg --project --arg /path/to/repo --arg serve --active` |
+| [JetBrains AI Assistant](https://www.jetbrains.com/help/ai-assistant/mcp.html) | Settings, Tools, AI Assistant, Model Context Protocol, then add as JSON |
+| [OpenCode](https://opencode.ai/docs/mcp-servers/) | `opencode mcp add graphlume --global -- graphlume --project /path/to/repo serve` |
+| [Qoder, Lingma, CodeBuddy and Trae IDEs](https://docs.qoder.com/user-guide/chat/model-context-protocol) | Settings, MCP, Add, then paste the `mcpServers` entry |
+| [Raycast, Msty, Cherry Studio, 5ire](https://manual.raycast.com/ai/model-context-protocol) | Add a stdio server: command `graphlume`, arguments `--project /path/to/repo serve` |
+| [Roo Code](https://roocodeinc.github.io/Roo-Code/features/mcp/using-mcp-in-roo) | Add the `graphlume` entry to `.roo/mcp.json` in the project |
+| Any other MCP client | Add the JSON below to its configuration |
+
+```json
+{
+  "mcpServers": {
+    "graphlume": { "command": "graphlume", "args": ["--project", "/absolute/path/to/repo", "serve"] }
+  }
+}
+```
+
+## Agents without local MCP
+
+| Agent | What it supports | How GraphLume serves it today | What would add full support |
+|---|---|---|---|
+| [Aider](https://aider.chat/docs/usage/conventions.html) | No MCP. Reads a conventions file and runs shell commands. | `graphlume install --rules` writes a `CONVENTIONS.md` block that tells Aider to run `graphlume context`, `graphlume callers` and `graphlume impact`. Load it with `aider --read CONVENTIONS.md`. | Nothing in GraphLume. Aider gains MCP or keeps using the CLI. |
+| [Plandex](https://docs.plandex.ai/) | No MCP. Loads files and command output into context. | Load command output: `graphlume context "<task>" > ctx.md`, then `plandex load ctx.md`. | Nothing in GraphLume. |
+| [ChatGPT (developer mode)](https://platform.openai.com/docs/guides/developer-mode) | Remote MCP over HTTPS only, from OpenAI's servers. | `graphlume serve --http 127.0.0.1:7788 --allowed-host <tunnel host>` behind an HTTPS tunnel you run; the connector URL is `https://<tunnel host>/mcp/<token>`. See [Remote MCP over HTTP](#remote-mcp-over-http). | Nothing in GraphLume. |
+| [Android Studio (Gemini)](https://developer.android.com/studio/gemini/add-mcp-server) | Remote MCP over HTTP only. | `graphlume serve --http 127.0.0.1:7788`, then add `http://127.0.0.1:7788/mcp` with an `Authorization: Bearer <token>` header in its `mcp.json`. | Nothing in GraphLume. |
+
+Every agent can also use the CLI directly. `graphlume context`, `graphlume callers`,
+`graphlume impact` and `graphlume tests` print plain text an agent can read from any
+shell tool.
+
+## Remote MCP over HTTP
+
+```bash
+export GRAPHLUME_MCP_TOKEN="$(openssl rand -hex 32)"   # optional; otherwise one is generated per run into .graphlume/mcp-token
+graphlume --project /path/to/repo serve --http 127.0.0.1:7788
+```
+
+```console
+MCP over HTTP: http://127.0.0.1:7788/mcp
+Token: from GRAPHLUME_MCP_TOKEN
+Send it as 'Authorization: Bearer <token>', or use http://127.0.0.1:7788/mcp/<token> if the client cannot set headers.
+```
+
+| Protection | What it does |
+|---|---|
+| Token on every request | `Authorization: Bearer <token>`, or the token as the last path segment for clients that only take a URL. Compared in constant time; a missing or wrong token gets `401`. `GRAPHLUME_MCP_TOKEN` must be at least 24 characters. |
+| Loopback by default | `--http` refuses a non-loopback address such as `0.0.0.0:7788` unless `--allow-remote` is given. |
+| Host check | Requests whose `Host` is not this machine or a name in `--allowed-host` get `403`, which blocks DNS rebinding. |
+| Origin check | A request with an `Origin` that is not this machine or an allowed host gets `403`, so a web page open in your browser cannot call the server. |
+| Read-only index | The server opens `.graphlume/index.db` read-only, over HTTP as over stdio. |
+
+**A client on this machine** (Android Studio, or any client that takes a URL and
+headers) connects to `http://127.0.0.1:7788/mcp` with the bearer header.
+
+**A cloud client** (ChatGPT) cannot reach `127.0.0.1`. Run an HTTPS tunnel you
+trust to `127.0.0.1:7788`, start the server with `--allowed-host` set to the
+tunnel's hostname, and give the client `https://<tunnel host>/mcp/<token>`.
+Anyone with that URL can query your index while the server runs, so keep the
+token secret, stop the server when you are done, and use a new token next time.
+The path form puts the token in the URL, which proxies may log; prefer the
+header wherever the client supports it.
+
+
+## Guidance files
+
+An MCP server alone does not make an agent use it; the agent also needs to know
+*when* to ask. `graphlume install --rules` adds a short, marked block:
+
+| File | When it is written |
+|---|---|
+| `AGENTS.md` | Always; created if missing. Read by Codex, Copilot, Cursor, Amp, Jules, Factory, Kilo, OpenCode, Zed, Warp, Devin and others. |
+| `CLAUDE.md`, `GEMINI.md`, `QWEN.md`, `CODEBUDDY.md`, `WARP.md` | Updated only if the file already exists |
+| `.cursorrules`, `.windsurfrules`, `.clinerules`, `.roorules`, `.github/copilot-instructions.md` | Updated only if the file already exists |
+| `CONVENTIONS.md` | For Aider: created when `aider` is installed, otherwise updated if it exists. Holds CLI commands, not MCP tools. |
+
+Running it again replaces the block in place; nothing else in the file changes.
+
+## How `graphlume install` edits config files
+
+- It adds or replaces one entry named `graphlume` and keeps every other server and
+  setting in the file.
+- Each agent gets the shape its own documentation specifies. The JSON key,
+  `type` field and argument layout differ between agents, and the table above
+  records which one each uses.
+- JSON is parsed before it is written. A file with comments (JSONC) or an
+  unexpected shape is left untouched and reported as `manual`, with the entry to
+  paste.
+- Codex TOML is edited as text: only the `[mcp_servers.graphlume]` table is
+  replaced or appended, so comments and ordering elsewhere survive.
+- Goose YAML is edited through a node tree, which keeps comments and the other
+  extensions.
+- A second run with no changes reports `unchanged` and writes nothing.
+
+## Adding an agent
+
+An agent that reads a JSON file with an `mcpServers` map needs one entry in
+`mcpClients` in [`internal/cli/clients.go`](../../internal/cli/clients.go): its
+name, file path, key, how to detect it, and a link to its MCP documentation.
+`TestEverySupportedClientHasDocs` fails if the link is missing. Agents with
+another format reuse an existing writer (`fmtCodexTOML`, `fmtGooseYAML`,
+`fmtContinueYAML`) or add one with a test that proves it keeps the rest of the
+file. An agent configured only through its UI goes in `manualClients` with the
+exact step to follow.
