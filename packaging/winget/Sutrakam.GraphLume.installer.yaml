@@ -9,10 +9,10 @@ NestedInstallerFiles:
   PortableCommandAlias: graphlume
 Commands:
 - graphlume
-ReleaseDate: 2026-11-12
+ReleaseDate: 2026-11-25
 Installers:
 - Architecture: x64
   InstallerUrl: https://github.com/sutrakam/graphlume/releases/download/v1.0.0/graphlume_v1.0.0_windows_amd64.zip
-  InstallerSha256: BFD552D188D91AABEB862D587BEE1F0D472846443254368466BCAD4BFAB24DA9
+  InstallerSha256: 41FBFB8E4E958C7971931591D1FDFC483D37502D11C2E7294AFC4F10076EC052
 ManifestType: installer
 ManifestVersion: 1.28.0

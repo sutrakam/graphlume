@@ -6,7 +6,7 @@
     "architecture": {
         "64bit": {
             "url": "https://github.com/sutrakam/graphlume/releases/download/v1.0.0/graphlume_v1.0.0_windows_amd64.zip",
-            "hash": "bfd552d188d91aabeb862d587bee1f0d472846443254368466bcad4bfab24da9"
+            "hash": "41fbfb8e4e958c7971931591d1fdfc483d37502d11c2e7294afc4f10076ec052"
         }
     },
     "bin": "graphlume.exe",

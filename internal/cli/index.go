@@ -404,9 +404,8 @@ func runIndex(cmd *cobra.Command, g *Global, workers int, showDigest bool, accur
 		log.Info("streaming discovery", "previous_files", prev.FilesDiscovered, "threshold", pipeline.StreamingThreshold)
 	}
 
-	var lastPct int64 = -1
 	// Parse workers report progress concurrently; progMu serialises the
-	// callback so lastPct and the progress bar are updated by one at a time.
+	// callback so the progress bar is updated by one at a time.
 	var progMu sync.Mutex
 	bar := newProgressBar(cmd.OutOrStdout(), "Indexing files", g.Quiet || g.JSON)
 	runner := pipeline.NewRunner(walker, pipeline.Options{
@@ -428,15 +427,8 @@ func runIndex(cmd *cobra.Command, g *Global, workers int, showDigest bool, accur
 				}
 				return
 			}
-			// Log on decile boundaries only in non-interactive / CI mode:
-			// on an interactive terminal, the in-place progress bar already provides visual progress,
-			// and logging newlines corrupts the carriage-return animation.
-			if !bar.isTerminal {
-				if pct := done * 100 / total; pct/10 > lastPct/10 {
-					lastPct = pct
-					_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "  indexed %d%% (%d of %d files)\n", pct, done, total)
-				}
-			}
+			// Without a terminal the bar itself prints a line at each
+			// quarter; a second set of lines here said the same thing twice.
 		},
 	})
 

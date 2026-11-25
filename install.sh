@@ -116,6 +116,5 @@ case ":${PATH}:" in
 esac
 
 echo ""
-echo "Next: cd into a repository and run"
-echo "  graphlume init && graphlume index && graphlume resolve"
-echo "  graphlume install     # register with your coding agent"
+echo "Next: cd into a project and run"
+echo "  graphlume init --all   # index it and connect your coding agents"

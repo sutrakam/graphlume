@@ -279,3 +279,22 @@ func TestInitAllRepairsADamagedIndex(t *testing.T) {
 		t.Errorf("status after the repair: %v", err)
 	}
 }
+
+// TestSetupFailureInEveryDirectoryIsReportedOnce: when every directory failed,
+// "2 of 2 directories could not be prepared" was printed and then the caller's
+// "Failed: ..." said the same thing again.
+func TestSetupFailureInEveryDirectoryIsReportedOnce(t *testing.T) {
+	root := t.TempDir()
+	dirs := []string{filepath.Join(root, "a"), filepath.Join(root, "b")}
+	run := &scriptedRunner{fail: map[string]bool{"a": true, "b": true}}
+	var out bytes.Buffer
+	g := &Global{}
+	g.cfg.RepoRoot = root
+	s := &guidedSetup{ctx: context.Background(), g: g, cfg: g.cfg, out: &out, run: run}
+	if err := s.runEach(dirs, [][]string{{"go", "mod", "download"}}); err == nil {
+		t.Fatal("every directory failed, yet the step reported success")
+	}
+	if strings.Contains(out.String(), "could not be prepared") {
+		t.Errorf("the failure is summarised here and again by the caller:\n%s", out.String())
+	}
+}

@@ -103,23 +103,6 @@ func runGuidedSetup(ctx context.Context, g *Global, in io.Reader, out io.Writer,
 		_, _ = fmt.Fprintf(out, "Could not plan compiler indexers (%v); indexing without them.\n", err)
 		return false
 	}
-	// Named before anything is fetched: a Go project that asks for a newer Go
-	// than the installed one makes the go command download that release.
-	for _, d := range indexer.GoDownloads(plan) {
-		for i, p := range d.Projects {
-			if p == "." {
-				d.Projects[i] = "this project"
-			}
-		}
-		where := strings.Join(d.Projects, ", ")
-		if len(d.Projects) > 3 {
-			where = strings.Join(d.Projects[:3], ", ") + fmt.Sprintf(" and %d more", len(d.Projects)-3)
-		}
-		_, _ = fmt.Fprintf(out, "Go: %s %s %s, newer than your %s. To index %s, the go command downloads %s "+
-			"(an official Go release, checksum-verified, about 70 MB).\n",
-			where, plural(len(d.Projects), "asks for", "ask for"), d.Release, d.Installed,
-			plural(len(d.Projects), "it", "them"), d.Release)
-	}
 	run := newSetupRunner()
 	home, _ := os.UserHomeDir()
 	items := indexer.SetupItems(plan, indexer.SetupEnv{GOOS: setupGOOS, LookPath: run.LookPath, Home: home})
@@ -465,13 +448,13 @@ func (s *guidedSetup) runEach(dirs []string, cmds [][]string) error {
 	if len(failed) == 0 {
 		return nil
 	}
-	// One directory that cannot be prepared does not stop the others: each is
-	// independent, and the rest still gain full type-checking.
-	s.printf("    %d of %d directories could not be prepared; they stay graded rather than proven. First failure: %v\n",
-		len(failed), len(dirs), firstErr)
+	// When every directory failed, the caller reports that one failure; when
+	// only some did, the rest still gained full type-checking, so say which.
 	if len(failed) == len(dirs) {
 		return firstErr
 	}
+	s.printf("    %d of %d directories could not be prepared; they stay graded rather than proven. First failure: %v\n",
+		len(failed), len(dirs), firstErr)
 	return nil
 }
 

@@ -40,28 +40,9 @@ func TestInstalledGoReadsTheVersionBanner(t *testing.T) {
 	}
 }
 
-func TestGoDownloadsNamesEveryReleaseBeforeIndexing(t *testing.T) {
+func TestExecutorRunsScipGoWithTheInstalledGo(t *testing.T) {
 	t.Parallel()
-	root := writeRepo(t, map[string]string{
-		"old/go.mod":   "module old\n\ngo 1.21\n",
-		"newA/go.mod":  "module a\n\ngo 1.25.3\n",
-		"newB/go.mod":  "module b\n\ngo 1.25.3\n",
-		"newer/go.mod": "module c\n\ngo 1.26\n",
-	})
-	plan := Plan{
-		RepoRoot:  root,
-		Toolchain: Toolchain{Tools: map[Tool]ToolStatus{ToolGo: {Present: true, Version: "go version go1.24.2 linux/amd64"}}},
-	}
-	for _, d := range []string{"old", "newA", "newB", "newer"} {
-		plan.Projects = append(plan.Projects, Project{Language: LangGo, Dir: d})
-	}
-	got := GoDownloads(plan)
-	if len(got) != 2 || got[0].Release != "go1.25.3" || len(got[0].Projects) != 2 || got[1].Release != "go1.26" {
-		t.Fatalf("GoDownloads = %+v; want go1.25.3 for newA and newB, then go1.26", got)
-	}
-	if got[0].Installed != "go1.24.2" {
-		t.Errorf("installed = %q", got[0].Installed)
-	}
+	root := writeRepo(t, map[string]string{"old/go.mod": "module old\n\ngo 1.21\n"})
 	e := &Executor{InstalledGo: "go1.24.2"}
 	if v := e.goToolchain(filepath.Join(root, "old")); v != "local" {
 		t.Errorf("an old module runs with %q, want the installed Go (local)", v)

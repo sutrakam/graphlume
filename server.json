@@ -43,7 +43,7 @@
     {
       "registryType": "mcpb",
       "identifier": "https://github.com/sutrakam/graphlume/releases/download/v1.0.0/graphlume_v1.0.0_darwin_universal.mcpb",
-      "fileSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "fileSha256": "e65087c3ee1262d6e6b49f981873da2bb791bbf148af722c0874142d41b0aba3",
       "transport": {
         "type": "stdio"
       }
@@ -51,7 +51,7 @@
     {
       "registryType": "mcpb",
       "identifier": "https://github.com/sutrakam/graphlume/releases/download/v1.0.0/graphlume_v1.0.0_windows_amd64.mcpb",
-      "fileSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "fileSha256": "ce6150d6d0d6a189c4de21fb00af6dfeb3a46e3df578e000e21df776a0ac557b",
       "transport": {
         "type": "stdio"
       }
@@ -59,7 +59,7 @@
     {
       "registryType": "mcpb",
       "identifier": "https://github.com/sutrakam/graphlume/releases/download/v1.0.0/graphlume_v1.0.0_linux_amd64.mcpb",
-      "fileSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "fileSha256": "fbee587d3658f778a3a05cb69d44a625aa3aacba1bcafbeb3c6e7d24f38944e2",
       "transport": {
         "type": "stdio"
       }
@@ -67,7 +67,7 @@
     {
       "registryType": "mcpb",
       "identifier": "https://github.com/sutrakam/graphlume/releases/download/v1.0.0/graphlume_v1.0.0_linux_arm64.mcpb",
-      "fileSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "fileSha256": "de37242618a1c21b3642e8f239369ba9238235713c334f9891dd27ba5dcabcac",
       "transport": {
         "type": "stdio"
       }

@@ -79,6 +79,13 @@ go test -race -timeout 30m ./internal/cli/
 if [ "$QUICK" = 1 ]; then printf '\n\033[32mquick checks passed\033[0m\n'; exit 0; fi
 
 gl="$tmp/graphlume"
+# The end-to-end steps register projects and write agent configs under HOME,
+# so they get a throwaway one: your own registry and configs stay untouched.
+mkdir -p "$tmp/home"
+realhome="$HOME" realxdg="${XDG_CONFIG_HOME-}"
+GOMODCACHE="$(go env GOMODCACHE)" GOCACHE="$(go env GOCACHE)" GOPATH="$(go env GOPATH)"
+export GOMODCACHE GOCACHE GOPATH
+export HOME="$tmp/home" XDG_CONFIG_HOME="$tmp/home/.config"
 current="end-to-end on this repository"; step "$current"
 go build -o "$gl" ./cmd/graphlume
 work="$tmp/self"; git worktree add --quiet --detach "$work" HEAD
@@ -107,7 +114,8 @@ current="retrieval benchmark on the bundled fixture"; step "$current"
   "$gl" bench ../../fixtures/bench/payment.yml --fail-on-regression
 )
 
-export PATH="$fullpath"
+export PATH="$fullpath" HOME="$realhome"
+if [ -n "$realxdg" ]; then export XDG_CONFIG_HOME="$realxdg"; else unset XDG_CONFIG_HOME; fi
 
 # --- build ------------------------------------------------------------------
 current="wall-clock parser tests (without -race)"; step "$current"

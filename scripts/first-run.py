@@ -150,6 +150,17 @@ def common_checks(cid, run):
     if "uncommitted changes" in run.text:
         record(cid + "/own-files", False, "warns about uncommitted changes GraphLume made itself")
         ok = False
+    # Within one phase (phases start at "==>" headers), each progress mark once.
+    dup_pct = set()
+    for phase in re.split(r"\n\s*==>", run.text):
+        pcts = re.findall(r"(\d+)% \(", phase)
+        dup_pct |= {p for p in pcts if pcts.count(p) > 1}
+    if dup_pct:
+        record(cid + "/progress", False, f"progress printed twice in one phase for {sorted(dup_pct, key=int)}%")
+        ok = False
+    if "could not be prepared" in run.text and "Failed:" in run.text:
+        record(cid + "/failure-twice", False, "the same setup failure is reported twice")
+        ok = False
     if re.search(r"go: downloading go\d", run.text):
         record(cid + "/download", False, "go downloaded a toolchain")
         ok = False
@@ -389,9 +400,22 @@ def main():
         open(os.path.join(d, "a.go"), "w").write("package e2\n\nfunc F() {}\n")
         git_init(d)
         r = run_plain(gl, d, ["init", "--all", "--yes"], e.env)
-        announced = re.search(r"Go 1\.99|go1\.99", r.text) is not None
         silent = re.search(r"go: downloading go1\.99", r.text) is not None
-        record("E2", announced and not silent, f"announced: {announced}; silent download: {silent}")
+        record("E2", not silent, "no Go release downloaded" if not silent else "go downloaded Go 1.99 without asking")
+    if want("E4"):
+        # Go read by the built-in type checker runs no go command, so no Go
+        # release may be announced as a download.
+        e = Env(work, "e4")
+        d = os.path.join(work, "e4")
+        os.makedirs(d)
+        open(os.path.join(d, "go.mod"), "w").write("module example.com/e4\n\ngo 1.99\n")
+        open(os.path.join(d, "a.go"), "w").write("package e4\n\nfunc F() {}\n")
+        git_init(d)
+        r = run_plain(gl, d, ["init", "--all", "--yes"], e.env)
+        plan = run_plain(gl, d, ["indexers", "list"], e.env)
+        uses_scip_go = re.search(r"^go\s+scip-go\s", plan.text, re.M) is not None
+        announced = "the go command downloads" in r.text
+        record("E4", announced == uses_scip_go, f"scip-go planned: {uses_scip_go}; download announced: {announced}")
     if want("E3"):
         e = Env(work, "e3")
         d = sample(work, "e3")

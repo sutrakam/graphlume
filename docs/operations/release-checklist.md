@@ -54,13 +54,15 @@ on the build being released.
 | D5 | The same information | Shown once per run, not in two places | Journey |
 | D6 | Internal logs | Never mixed into normal output; `--verbose` shows them | Journey |
 | D7 | Files GraphLume writes itself (`AGENTS.md`, `.mcp.json`) | Never reported back to the user as their uncommitted changes | Journey |
+| D8 | Progress and failures | Each progress mark and each failure is reported once | Journey |
 
 ## E. Downloads and network
 
 | ID | Case | Expected | Test |
 |---|---|---|---|
 | E1 | Any download | Announced first: what it is, where from, how large; asked unless `--yes` covers it | Unit, Journey |
-| E2 | A Go module that asks for a newer Go | The Go release it would fetch is named before it is fetched, never silently | Unit, Journey |
+| E2 | A Go module that asks for a newer Go | No Go release is downloaded: setup runs the installed Go (`GOTOOLCHAIN=local`) and the built-in type checker runs no go command | Unit, Journey |
+| E4 | Go read by the built-in type checker | No Go download is announced, because none happens | Journey |
 | E3 | No network | Indexing completes without the compiler indexers, and says which ones were skipped | Journey |
 
 ## F. Files and privacy

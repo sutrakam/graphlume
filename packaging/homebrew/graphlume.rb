@@ -8,20 +8,20 @@ class Graphlume < Formula
   on_macos do
     if Hardware::CPU.arm?
       url "https://github.com/sutrakam/graphlume/releases/download/v1.0.0/graphlume_v1.0.0_darwin_arm64.tar.gz"
-      sha256 "b25dc50a712137298e645163093db2aba3839983e7c3ce083c0d0dbae467b45c"
+      sha256 "020e0eaaf926f2f699cbfaa8dcec0b438413f1946538106817429dd8dd8d1487"
     else
       url "https://github.com/sutrakam/graphlume/releases/download/v1.0.0/graphlume_v1.0.0_darwin_amd64.tar.gz"
-      sha256 "b202061d3f519d22d1b230e747287cb090c67746a5e4669a571a16f2046d39f3"
+      sha256 "50efea298853a5026be58c286f71b9631f6bb3e025b344967f1cb79040ca4d8e"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm?
       url "https://github.com/sutrakam/graphlume/releases/download/v1.0.0/graphlume_v1.0.0_linux_arm64.tar.gz"
-      sha256 "3bdcc1ea22a4656a6b3916f5e5cda70449579209cb5831e1e2c66b2956873789"
+      sha256 "5710002de5e13a89700536b9ab5a3fb938b0604cae4304d4a028a5e1325b3dce"
     else
       url "https://github.com/sutrakam/graphlume/releases/download/v1.0.0/graphlume_v1.0.0_linux_amd64.tar.gz"
-      sha256 "ee562f67e44b1b00f75c9d4142bc42f94a950ea4544e5af8629ebc0c2ba7d398"
+      sha256 "c82cc5db983f861ce81c004b197e27b78b45756f40e14ab7c05487d556f75992"
     end
   end
 

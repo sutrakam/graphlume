@@ -68,9 +68,8 @@ try {
     }
 
     Write-Host ""
-    Write-Host "Next: cd into a repository and run"
-    Write-Host "  graphlume init; graphlume index; graphlume resolve"
-    Write-Host "  graphlume install     # register with your coding agent"
+    Write-Host "Next: cd into a project and run"
+    Write-Host "  graphlume init --all   # index it and connect your coding agents"
 }
 finally {
     Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
