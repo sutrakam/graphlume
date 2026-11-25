@@ -1,0 +1,18 @@
+{
+  "is_error": false,
+  "result": {
+    "index_revision": 0,
+    "index_status": "absent",
+    "notes": [
+      "Run 'graphlume index' in the project root, then ask again. This is not a tool failure: GraphLume is working and the index is simply absent."
+    ],
+    "provenance": {
+      "age_seconds": 0,
+      "caveat": "HEAD could not be determined, so index freshness is unknown. This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.",
+      "head_matches_build": false
+    },
+    "summary": "No index has been built for this project yet, so there is nothing to answer from."
+  },
+  "text": "=== SYSTEM METADATA ===\nNo index has been built for this project yet, so there is nothing to answer from.\nindex_revision: 0  status: absent\nnote: Run 'graphlume index' in the project root, then ask again. This is not a tool failure: GraphLume is working and the index is simply absent.\nprovenance: HEAD could not be determined, so index freshness is unknown. This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.\n",
+  "tool": "callers"
+}

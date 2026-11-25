@@ -1,0 +1,23 @@
+{
+  "is_error": false,
+  "result": {
+    "index_revision": 1,
+    "index_status": "ready",
+    "notes": [
+      "Exposed HTTP APIs: 1 live endpoints (e.g. POST /payment/callback). Call 'endpoints' for full catalog.",
+      "Database Footprint: 2 tables referenced (e.g. transactions, transaction_events). Call 'tables' for the access graph.",
+      "Agent Guidance: Use 'impact' to evaluate refactoring impact; use 'symbol' to resolve declarations; use 'callers' to trace upstream callers.",
+      "69% of the 26 references that name something this index defines are bound to a definition; 8 are too ambiguous to choose between. A further 29 matched no definition here at all, mostly calls into libraries. Caller and reference results are a lower bound, not a complete set."
+    ],
+    "provenance": {
+      "age_seconds": 9,
+      "built_at_sha": "0571f90c58b37bf17844ea9fa494b9f025d034aa",
+      "caveat": "The index was built from 0571f90c but HEAD is d28fecc3. Results may describe code that has changed; run `graphlume index` to reindex. This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.",
+      "head_matches_build": false,
+      "head_sha": "d28fecc3f3fabdd0a56a3c8daf36b50772fc6303"
+    },
+    "summary": "pp — 10 files, 54 symbols, 26 relationships indexed."
+  },
+  "text": "=== SYSTEM METADATA ===\npp — 10 files, 54 symbols, 26 relationships indexed.\nindex_revision: 1  status: ready\nnote: Exposed HTTP APIs: 1 live endpoints (e.g. POST /payment/callback). Call 'endpoints' for full catalog.\nnote: Database Footprint: 2 tables referenced (e.g. transactions, transaction_events). Call 'tables' for the access graph.\nnote: Agent Guidance: Use 'impact' to evaluate refactoring impact; use 'symbol' to resolve declarations; use 'callers' to trace upstream callers.\nnote: 69% of the 26 references that name something this index defines are bound to a definition; 8 are too ambiguous to choose between. A further 29 matched no definition here at all, mostly calls into libraries. Caller and reference results are a lower bound, not a complete set.\nprovenance: The index was built from 0571f90c but HEAD is d28fecc3. Results may describe code that has changed; run `graphlume index` to reindex. This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.\n",
+  "tool": "overview"
+}

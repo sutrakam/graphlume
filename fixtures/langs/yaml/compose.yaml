@@ -1,0 +1,31 @@
+name: shop
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+
+x-env: &common-env
+  LOG_LEVEL: info
+  REGION: eu
+
+services:
+  api:
+    image: shop/api:1.2
+    ports:
+      - "8080:8080"
+    environment:
+      <<: *common-env
+      DATABASE_URL: postgres://db/shop
+    logging: *default-logging
+    depends_on: [db]
+  worker:
+    image: shop/worker:1.2
+    environment: *common-env
+    command: ["run", "--queue", "default"]  # & is fine in a comment
+  db:
+    image: postgres:16
+    volumes:
+      - data:/var/lib/postgresql/data
+
+volumes:
+  data: {}

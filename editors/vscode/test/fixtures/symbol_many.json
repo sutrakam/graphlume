@@ -1,0 +1,161 @@
+{
+  "is_error": false,
+  "result": {
+    "index_revision": 1,
+    "index_status": "ready",
+    "items": [
+      {
+        "confidence": "high",
+        "fqn": "internal/capability/ownership/ownership.go:New",
+        "kind": "function",
+        "line": 136,
+        "name": "New",
+        "path": "internal/capability/ownership/ownership.go",
+        "source": "source_code"
+      },
+      {
+        "confidence": "high",
+        "fqn": "internal/diffgraph/diff.go:New",
+        "kind": "function",
+        "line": 86,
+        "name": "New",
+        "path": "internal/diffgraph/diff.go",
+        "source": "source_code"
+      },
+      {
+        "confidence": "high",
+        "fqn": "internal/docs/derive.go:New",
+        "kind": "function",
+        "line": 58,
+        "name": "New",
+        "path": "internal/docs/derive.go",
+        "source": "source_code"
+      },
+      {
+        "confidence": "high",
+        "fqn": "internal/edit/editor.go:New",
+        "kind": "function",
+        "line": 117,
+        "name": "New",
+        "path": "internal/edit/editor.go",
+        "source": "source_code"
+      },
+      {
+        "confidence": "high",
+        "fqn": "internal/errs/errs.go:New",
+        "kind": "function",
+        "line": 204,
+        "name": "New",
+        "path": "internal/errs/errs.go",
+        "source": "source_code"
+      },
+      {
+        "confidence": "high",
+        "fqn": "internal/graph/graph.go:New",
+        "kind": "function",
+        "line": 147,
+        "name": "New",
+        "path": "internal/graph/graph.go",
+        "source": "source_code"
+      },
+      {
+        "confidence": "high",
+        "fqn": "internal/mcp/server.go:New",
+        "kind": "function",
+        "line": 144,
+        "name": "New",
+        "path": "internal/mcp/server.go",
+        "source": "source_code"
+      },
+      {
+        "confidence": "high",
+        "fqn": "internal/multirepo/graph.go:New",
+        "kind": "function",
+        "line": 122,
+        "name": "New",
+        "path": "internal/multirepo/graph.go",
+        "source": "source_code"
+      },
+      {
+        "confidence": "high",
+        "fqn": "internal/observe/log.go:New",
+        "kind": "function",
+        "line": 41,
+        "name": "New",
+        "path": "internal/observe/log.go",
+        "source": "source_code"
+      },
+      {
+        "confidence": "high",
+        "fqn": "internal/registry/registry.go:New",
+        "kind": "function",
+        "line": 99,
+        "name": "New",
+        "path": "internal/registry/registry.go",
+        "source": "source_code"
+      },
+      {
+        "confidence": "high",
+        "fqn": "internal/resolve/infer/resolver.go:New",
+        "kind": "function",
+        "line": 155,
+        "name": "New",
+        "path": "internal/resolve/infer/resolver.go",
+        "source": "source_code"
+      },
+      {
+        "confidence": "high",
+        "fqn": "internal/resolve/scip/ingest.go:New",
+        "kind": "function",
+        "line": 177,
+        "name": "New",
+        "path": "internal/resolve/scip/ingest.go",
+        "source": "source_code"
+      },
+      {
+        "confidence": "high",
+        "fqn": "internal/verify/verify.go:New",
+        "kind": "function",
+        "line": 388,
+        "name": "New",
+        "path": "internal/verify/verify.go",
+        "source": "source_code"
+      },
+      {
+        "confidence": "high",
+        "fqn": "internal/watch/watch.go:New",
+        "kind": "function",
+        "line": 167,
+        "name": "New",
+        "path": "internal/watch/watch.go",
+        "source": "source_code"
+      },
+      {
+        "confidence": "high",
+        "fqn": "internal/web/web.go:New",
+        "kind": "function",
+        "line": 309,
+        "name": "New",
+        "path": "internal/web/web.go",
+        "source": "source_code"
+      }
+    ],
+    "provenance": {
+      "age_seconds": 161,
+      "built_at_sha": "6fadd51b76b45129669a667d0a93a45050be12ae",
+      "caveat": "This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.",
+      "head_matches_build": true,
+      "head_sha": "6fadd51b76b45129669a667d0a93a45050be12ae"
+    },
+    "summary": "15 definition(s) named \"New\".",
+    "verdict": {
+      "counts": {
+        "high": 15
+      },
+      "next_step": "No result fell below high confidence. Act on these, but verify before deleting anything.",
+      "status": "strong"
+    }
+  },
+  "text": "=== SYSTEM METADATA ===\n15 definition(s) named \"New\".\nindex_revision: 1  status: ready\nprovenance: This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.\nverdict: strong (high=15)\nnext_step: No result fell below high confidence. Act on these, but verify before deleting anything.\n\n=== INFERRED ===\n- function New  internal/capability/ownership/ownership.go:136  [confidence=high source=source_code]\n- function New  internal/diffgraph/diff.go:86  [confidence=high source=source_code]\n- function New  internal/docs/derive.go:58  [confidence=high source=source_code]\n- function New  internal/edit/editor.go:117  [confidence=high source=source_code]\n- function New  internal/errs/errs.go:204  [confidence=high source=source_code]\n- function New  internal/graph/graph.go:147  [confidence=high source=source_code]\n- function New  internal/mcp/server.go:144  [confidence=high source=source_code]\n- function New  internal/multirepo/graph.go:122  [confidence=high source=source_code]\n- function New  internal/observe/log.go:41  [confidence=high source=source_code]\n- function New  internal/registry/registry.go:99  [confidence=high source=source_code]\n- function New  internal/resolve/infer/resolver.go:155  [confidence=high source=source_code]\n- function New  internal/resolve/scip/ingest.go:177  [confidence=high source=source_code]\n- function New  internal/verify/verify.go:388  [confidence=high source=source_code]\n- function New  internal/watch/watch.go:167  [confidence=high source=source_code]\n- function New  internal/web/web.go:309  [confidence=high source=source_code]\n",
+  "tool": "symbol"
+}

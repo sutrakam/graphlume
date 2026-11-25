@@ -1,0 +1,35 @@
+{
+  "is_error": false,
+  "result": {
+    "index_revision": 1,
+    "index_status": "ready",
+    "notes": [
+      "COVERAGE TOO LOW — relationship lookup for Java is unreliable here: 0% of the 2 Java references that name something this index defines are bound to a definition (2 ambiguous; a further 4 matched no definition here at all, out of 6 Java references in total). 'graphlume resolve' has already run on every one of them, so running it again will not change this; where an indexer exists for the language, 'graphlume scip import' can. Do not present what follows as an answer to the question asked.",
+      "This result is a LOWER BOUND, not a complete answer. GraphLume reports only relationships it could resolve statically in the indexed run; anything it could not resolve is absent from this report, not absent from the code.",
+      "No results found — but this is a LOWER BOUND, not proof there are none. References spelled \"parse\" in this index: 2. 0 bound to this definition, 2 ambiguous. Do not treat this as evidence the symbol is unused.",
+      "2 definitions are named \"parse\". This answer is for the method at java/src/main/java/com/shop/Parser.java:8, chosen by path and by line. Pass path and line to choose another."
+    ],
+    "page": {
+      "limit": 50,
+      "offset": 0,
+      "returned": 0,
+      "total": 0
+    },
+    "provenance": {
+      "age_seconds": 304,
+      "caveat": "HEAD could not be determined, so index freshness is unknown. This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.",
+      "head_matches_build": false
+    },
+    "reliability": {
+      "lead": "only 0% of the Java references that name something this index defines are bound.",
+      "level": "low",
+      "reasons": [
+        "COVERAGE TOO LOW — relationship lookup for Java is unreliable here: 0% of the 2 Java references that name something this index defines are bound to a definition (2 ambiguous; a further 4 matched no definition here at all, out of 6 Java references in total). 'graphlume resolve' has already run on every one of them, so running it again will not change this; where an indexer exists for the language, 'graphlume scip import' can. Do not present what follows as an answer to the question asked.",
+        "This result is a LOWER BOUND, not a complete answer. GraphLume reports only relationships it could resolve statically in the indexed run; anything it could not resolve is absent from this report, not absent from the code."
+      ]
+    },
+    "summary": "UNRELIABLE — only 0% of the Java references that name something this index defines are bound. 0 caller(s) of parse (java/src/main/java/com/shop/Parser.java:8) are recorded."
+  },
+  "text": "=== SYSTEM METADATA ===\nUNRELIABLE — only 0% of the Java references that name something this index defines are bound. 0 caller(s) of parse (java/src/main/java/com/shop/Parser.java:8) are recorded.\nindex_revision: 1  status: ready\nnote: COVERAGE TOO LOW — relationship lookup for Java is unreliable here: 0% of the 2 Java references that name something this index defines are bound to a definition (2 ambiguous; a further 4 matched no definition here at all, out of 6 Java references in total). 'graphlume resolve' has already run on every one of them, so running it again will not change this; where an indexer exists for the language, 'graphlume scip import' can. Do not present what follows as an answer to the question asked.\nnote: This result is a LOWER BOUND, not a complete answer. GraphLume reports only relationships it could resolve statically in the indexed run; anything it could not resolve is absent from this report, not absent from the code.\nnote: No results found — but this is a LOWER BOUND, not proof there are none. References spelled \"parse\" in this index: 2. 0 bound to this definition, 2 ambiguous. Do not treat this as evidence the symbol is unused.\nnote: 2 definitions are named \"parse\". This answer is for the method at java/src/main/java/com/shop/Parser.java:8, chosen by path and by line. Pass path and line to choose another.\nprovenance: HEAD could not be determined, so index freshness is unknown. This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.\n",
+  "tool": "callers"
+}

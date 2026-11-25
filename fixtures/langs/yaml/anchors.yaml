@@ -1,0 +1,53 @@
+# Anchors (&name) are definitions; aliases (*name) and merge keys are uses.
+# Plain keys are not definitions: the config analyser reports them.
+defaults: &defaults
+  adapter: postgres
+  host: localhost
+  pool: 5
+
+development:
+  <<: *defaults
+  database: dev_db
+
+test:
+  <<: *defaults
+  database: test_db
+
+retry_policy: &retry
+  attempts: 3
+  backoff: exponential
+
+jobs:
+  - name: sync
+    retry: *retry
+  - &nightly
+    name: nightly
+    schedule: "0 2 * * *"
+  - *nightly
+
+ports: &ports [80, 443]
+timeout: &timeout 30
+greeting: &greeting "hello"
+empty: &empty_anchor
+
+# An ampersand in a scalar or a string is not an anchor.
+url: "http://example.com/?a=1&b=2"
+note: fish & chips
+literal: |
+  text with &not_an_anchor inside a block scalar
+folded: >
+  more &also_not text
+
+services:
+  web: &web_service
+    image: nginx
+  worker:
+    <<: *defaults
+    image: busybox
+
+multi: &first_doc_anchor
+  k: v
+---
+second:
+  value: &second_doc_anchor 1
+  again: *second_doc_anchor

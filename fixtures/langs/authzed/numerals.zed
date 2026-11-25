@@ -1,0 +1,9 @@
+// Known gap: an identifier with a number in it is a syntax error in this grammar,
+// and the definitions around it are lost with it. See KNOWN_GAPS.md.
+definition server1 {
+    permission read = admin
+}
+
+definition after_it {
+    permission write = admin
+}

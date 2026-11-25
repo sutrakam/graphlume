@@ -1,0 +1,23 @@
+{
+  "is_error": false,
+  "result": {
+    "index_revision": 1,
+    "index_status": "ready",
+    "notes": [
+      "Exposed HTTP APIs: 31 live endpoints (e.g. ANY /, GET /api/accuracy, GET /api/diff, GET /api/who). Call 'endpoints' for full catalog.",
+      "Database Footprint: 39 tables referenced (e.g. files, symbols, edges, index_runs). Call 'tables' for the access graph.",
+      "Agent Guidance: Use 'impact' to evaluate refactoring impact; use 'symbol' to resolve declarations; use 'callers' to trace upstream callers.",
+      "82% of the 24917 references that name something this index defines are bound to a definition; 4452 are too ambiguous to choose between. A further 28163 matched no definition here at all, mostly calls into libraries. Caller and reference results are a lower bound, not a complete set."
+    ],
+    "provenance": {
+      "age_seconds": 89,
+      "built_at_sha": "6fadd51b76b45129669a667d0a93a45050be12ae",
+      "caveat": "This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.",
+      "head_matches_build": true,
+      "head_sha": "6fadd51b76b45129669a667d0a93a45050be12ae"
+    },
+    "summary": "graphlume — 724 files, 10743 symbols, 20640 relationships indexed."
+  },
+  "text": "=== SYSTEM METADATA ===\ngraphlume — 724 files, 10743 symbols, 20640 relationships indexed.\nindex_revision: 1  status: ready\nnote: Exposed HTTP APIs: 31 live endpoints (e.g. ANY /, GET /api/accuracy, GET /api/diff, GET /api/who). Call 'endpoints' for full catalog.\nnote: Database Footprint: 39 tables referenced (e.g. files, symbols, edges, index_runs). Call 'tables' for the access graph.\nnote: Agent Guidance: Use 'impact' to evaluate refactoring impact; use 'symbol' to resolve declarations; use 'callers' to trace upstream callers.\nnote: 82% of the 24917 references that name something this index defines are bound to a definition; 4452 are too ambiguous to choose between. A further 28163 matched no definition here at all, mostly calls into libraries. Caller and reference results are a lower bound, not a complete set.\nprovenance: This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.\n",
+  "tool": "overview"
+}

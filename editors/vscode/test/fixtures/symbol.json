@@ -1,0 +1,35 @@
+{
+  "is_error": false,
+  "result": {
+    "index_revision": 1,
+    "index_status": "ready",
+    "items": [
+      {
+        "confidence": "high",
+        "fqn": "internal/cli/tool.go:parseToolArg",
+        "kind": "function",
+        "line": 384,
+        "name": "parseToolArg",
+        "path": "internal/cli/tool.go",
+        "source": "source_code"
+      }
+    ],
+    "provenance": {
+      "age_seconds": 43,
+      "built_at_sha": "6fadd51b76b45129669a667d0a93a45050be12ae",
+      "caveat": "This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.",
+      "head_matches_build": true,
+      "head_sha": "6fadd51b76b45129669a667d0a93a45050be12ae"
+    },
+    "summary": "1 definition(s) named \"parseToolArg\".",
+    "verdict": {
+      "counts": {
+        "high": 1
+      },
+      "next_step": "No result fell below high confidence. Act on these, but verify before deleting anything.",
+      "status": "strong"
+    }
+  },
+  "text": "=== SYSTEM METADATA ===\n1 definition(s) named \"parseToolArg\".\nindex_revision: 1  status: ready\nprovenance: This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.\nverdict: strong (high=1)\nnext_step: No result fell below high confidence. Act on these, but verify before deleting anything.\n\n=== INFERRED ===\n- function parseToolArg  internal/cli/tool.go:384  [confidence=high source=source_code]\n",
+  "tool": "symbol"
+}

@@ -1,0 +1,41 @@
+{
+  "is_error": false,
+  "result": {
+    "index_revision": 1,
+    "index_status": "ready",
+    "items": [
+      {
+        "confidence": "high",
+        "kind": "calls",
+        "line": 21,
+        "name": "save",
+        "path": "src/main/java/com/pay/repository/TransactionRepository.java",
+        "source": "source_code",
+        "why": "receiver type matches"
+      }
+    ],
+    "notes": [
+      "37 references repository-wide are unresolved or ambiguous, so this list may be incomplete."
+    ],
+    "provenance": {
+      "age_seconds": 8,
+      "built_at_sha": "0571f90c58b37bf17844ea9fa494b9f025d034aa",
+      "caveat": "The index was built from 0571f90c but HEAD is d28fecc3. Results may describe code that has changed; run `graphlume index` to reindex. This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.",
+      "head_matches_build": false,
+      "head_sha": "d28fecc3f3fabdd0a56a3c8daf36b50772fc6303"
+    },
+    "summary": "1 caller(s) of getStatus (src/main/java/com/pay/model/Transaction.java:10).",
+    "verdict": {
+      "counts": {
+        "high": 1
+      },
+      "next_step": "No result fell below high confidence against the indexed revision. Reindex before acting if the working tree has moved.",
+      "signals": [
+        "the index does not match HEAD; these tiers describe the indexed revision, not your working tree"
+      ],
+      "status": "strong"
+    }
+  },
+  "text": "=== SYSTEM METADATA ===\n1 caller(s) of getStatus (src/main/java/com/pay/model/Transaction.java:10).\nindex_revision: 1  status: ready\nnote: 37 references repository-wide are unresolved or ambiguous, so this list may be incomplete.\nprovenance: The index was built from 0571f90c but HEAD is d28fecc3. Results may describe code that has changed; run `graphlume index` to reindex. This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.\nverdict: strong (high=1)\nverdict_signal: the index does not match HEAD; these tiers describe the indexed revision, not your working tree\nnext_step: No result fell below high confidence against the indexed revision. Reindex before acting if the working tree has moved.\n\n=== INFERRED ===\n- calls save  src/main/java/com/pay/repository/TransactionRepository.java:21  [confidence=high source=source_code]  (receiver type matches)\n",
+  "tool": "callers"
+}

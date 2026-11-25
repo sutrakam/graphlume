@@ -1,0 +1,7 @@
+# Settings for the payments platform. Values here are placeholders.
+PAYMENTS_GATEWAY_URL: https://gateway.example.com
+DATABASE_URL: postgres://payments@db.example.com/payments
+LISTEN_ADDR: ":8080"
+RETRY_BACKOFF_MS: 2000
+# Declared but nothing reads it any more.
+AUDIT_SAMPLE_RATE: 0.1

@@ -1,0 +1,29 @@
+# Kotlin: classes (with and without a body, data classes), interfaces, enums,
+# type aliases (listed as classes), objects (listed as variables: a singleton
+# value), functions, and methods (listed as functions: a member is a function
+# whose qualified name carries its class). An enum entry is listed as a
+# function, the catch-all kind for a kind the query does not name. A call and
+# an import are not definitions. A top-level val / const val is a constant and a
+# top-level var a variable (a destructuring declaration and a property of a
+# class are not). A name in backticks is listed without them. The methods of an
+# anonymous object (object : T { ... }) are not definitions.
+Sample.kt	5	class	Names
+Sample.kt	7	interface	Shape
+Sample.kt	8	function	area
+Sample.kt	11	class	Suit
+Sample.kt	12	function	HEARTS
+Sample.kt	13	function	SPADES
+Sample.kt	16	class	Point
+Sample.kt	18	class	Circle
+Sample.kt	19	function	area
+Sample.kt	22	function	unit
+Sample.kt	26	variable	Registry
+Sample.kt	27	function	lookup
+Sample.kt	30	function	shout
+Sample.kt	32	function	main
+Sample.kt	37	constant	MAX_RETRIES
+Sample.kt	38	constant	NO_ANNOTATIONS
+Sample.kt	39	variable	counter
+Sample.kt	42	class	-Reader
+Sample.kt	43	function	peek
+Sample.kt	46	function	adapter

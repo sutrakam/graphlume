@@ -1,0 +1,99 @@
+package views
+
+import (
+	"fmt"
+	"strings"
+)
+
+const defaultTitle = "Fixture"
+
+var pageCount int
+
+type Item struct {
+	Name  string
+	Price float64
+}
+
+type Renderer interface {
+	Render(item Item) string
+}
+
+type Money float64
+
+func formatPrice(p float64) string {
+	label := fmt.Sprintf("%.2f", p)
+	return strings.TrimSpace(label)
+}
+
+func (i Item) Label() string {
+	return strings.ToUpper(i.Name)
+}
+
+css highlight() {
+	background-color: #ffeeaa;
+	font-weight: bold;
+}
+
+css card(color string) {
+	border: 1px solid { color };
+	padding: 8px;
+}
+
+script confirmDelete(id string) {
+	if (confirm("delete " + id + "?")) {
+		window.location = "/delete/" + id;
+	}
+}
+
+script initPage() {
+	console.log("ready");
+}
+
+templ header(title string) {
+	<header class={ highlight() }>
+		<h1>{ title }</h1>
+	</header>
+}
+
+templ footer() {
+	<footer>
+		<p>{ fmt.Sprintf("pages: %d", pageCount) }</p>
+	</footer>
+}
+
+templ itemRow(item Item) {
+	<tr class={ card("red") }>
+		<td>{ item.Name }</td>
+		<td>{ formatPrice(item.Price) }</td>
+		<td>
+			<button onclick={ confirmDelete(item.Name) }>Delete</button>
+		</td>
+	</tr>
+}
+
+templ ItemTable(items []Item) {
+	<table>
+		for _, item := range items {
+			@itemRow(item)
+		}
+	</table>
+}
+
+templ Layout(title string) {
+	@header(title)
+	<main>
+		{ children... }
+	</main>
+	@footer()
+	@initPage()
+}
+
+templ (v View) Method(name string) {
+	<span>{ name }</span>
+}
+
+templ Page(items []Item) {
+	@Layout(defaultTitle) {
+		@ItemTable(items)
+	}
+}

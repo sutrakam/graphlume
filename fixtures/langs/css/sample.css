@@ -1,0 +1,88 @@
+/* Design tokens. */
+:root {
+  --brand-color: #3366cc;
+  --gap: 8px;
+  --font-stack: "Helvetica Neue", sans-serif;
+}
+
+html[data-theme="dark"] {
+  --brand-color: #99bbff;
+  color: var(--brand-color);
+  margin: var(--gap);
+}
+
+@property --angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@font-face {
+  font-family: "Fira Body";
+  src: url("fira.woff2") format("woff2");
+}
+
+@counter-style thumbs {
+  system: cyclic;
+  symbols: "\1F44D";
+  suffix: " ";
+}
+
+@layer reset, base;
+
+@layer components {
+  .card {
+    padding: var(--gap);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@import url("other.css");
+
+@media (min-width: 600px) {
+  .card {
+    padding: 16px;
+  }
+  .card .title {
+    font-weight: bold;
+  }
+  @keyframes slide-up {
+    0% { transform: translateY(8px); }
+    100% { transform: translateY(0); }
+  }
+}
+
+#main-header {
+  animation: fade-in 1s;
+}
+
+.card {
+  color: red;
+}
+
+.card .title,
+.card .body {
+  margin: 0;
+}
+
+.btn.primary:hover {
+  color: blue;
+}
+
+a.link {
+  text-decoration: none;
+}
+
+div > .nested p {
+  margin: 0;
+}
+
+@supports (display: grid) {
+  .grid-layout {
+    display: grid;
+  }
+}

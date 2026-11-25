@@ -1,0 +1,23 @@
+# VHDL: design units (entity, architecture, configuration), package and package body (package), components (interface), subprogram bodies (function, nested ones too), labelled processes (function), enumeration and record types (class), array types and subtypes (type_alias), and constants and signals (variable) declared at package or architecture level.
+# Not listed: subprogram prototypes in a package header, ports, generics, variables, locals, unlabelled processes, instantiation labels.
+sample.vhd	5	package	counters_pkg
+sample.vhd	6	constant	MAX_COUNT
+sample.vhd	7	class	state_t
+sample.vhd	8	type_alias	small_t
+sample.vhd	11	interface	adder
+sample.vhd	16	package	counters_pkg
+sample.vhd	17	function	next_value
+sample.vhd	22	function	"+"
+sample.vhd	27	function	bump
+sample.vhd	38	class	counter
+sample.vhd	47	class	rtl
+sample.vhd	48	variable	count
+sample.vhd	49	constant	LIMIT
+sample.vhd	50	type_alias	table_t
+sample.vhd	51	class	pair_t
+sample.vhd	55	variable	flags
+sample.vhd	55	variable	mask
+sample.vhd	57	function	is_limit
+sample.vhd	58	function	twice
+sample.vhd	66	function	main_proc
+sample.vhd	85	class	counter_cfg

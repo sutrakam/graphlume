@@ -1,0 +1,9 @@
+// Known gap: the grammar has no ipaddress type, so this file is read as an error
+// and nothing in it is extracted. See KNOWN_GAPS.md.
+caveat in_network(ip ipaddress) {
+    ip.in_cidr("10.0.0.0/8")
+}
+
+definition vpn {
+    relation member: user
+}

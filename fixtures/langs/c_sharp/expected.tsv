@@ -1,0 +1,54 @@
+# C#: classes, structs, records and enums (listed as classes), interfaces, methods, constructors (listed as methods, named after the class),
+# properties and events (listed as fields; auto, full, init-only and expression-bodied alike). Not definitions: a field, an indexer (it has no name), a delegate,
+# a return type (`ILogger Logger()` defines Logger and no method called ILogger), a call, `new X(...)`, an `if` or `return` in a body.
+Sample.cs	6	interface	IRepository
+Sample.cs	8	method	Find
+Sample.cs	9	method	All
+Sample.cs	12	interface	ILogger
+Sample.cs	14	method	ForContext
+Sample.cs	16	method	Enrich
+Sample.cs	22	class	Order
+Sample.cs	24	field	Id
+Sample.cs	25	field	Name
+Sample.cs	26	field	Total
+Sample.cs	27	field	Changed
+Sample.cs	28	field	Closed
+Sample.cs	31	method	Order
+Sample.cs	32	method	Order
+Sample.cs	34	method	Logger
+Sample.cs	35	method	Create
+Sample.cs	37	method	Equals
+Sample.cs	39	method	Run
+Sample.cs	49	class	Point
+Sample.cs	50	class	Mode
+Sample.cs	51	class	Pair
+# conditional.cs is the conditional-compilation fixture: `#if` groups that cut a method apart
+# (a body or `;` behind the parameter list, `=>` behind `#if`, an attribute in its own group) are
+# read with the first branch of each group; a definition that exists only in a branch that is
+# not kept is not extracted.
+conditional.cs	3	interface	IGreeter
+conditional.cs	9	method	Count
+conditional.cs	15	method	Total
+conditional.cs	25	method	Matches
+conditional.cs	33	method	Greet
+conditional.cs	36	class	Greeter
+conditional.cs	38	method	Count
+conditional.cs	40	method	Total
+conditional.cs	42	method	Matches
+conditional.cs	44	method	Greet
+# returns.cs: a method whose return type is a user type (plain, generic, nullable, wrapped, in an interface with and without conditional compilation) defines the method and never a method named after the type.
+returns.cs	3	interface	ILogger
+returns.cs	5	method	ForContext
+returns.cs	6	method	ForContext
+returns.cs	7	method	Maybe
+returns.cs	8	method	LaterAsync
+returns.cs	9	method	All
+returns.cs	12	method	Named
+returns.cs	20	method	Scoped
+returns.cs	23	class	Factory
+returns.cs	25	method	ForContext
+returns.cs	27	method	ForContext
+returns.cs	29	method	Maybe
+returns.cs	31	method	LaterAsync
+returns.cs	33	method	All
+returns.cs	35	method	Self

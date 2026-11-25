@@ -1,0 +1,34 @@
+# Fortran: program, module, submodule and block data (package), procedures
+# (function), derived types (class), named interfaces (interface), type-bound
+# bindings (method), module variables and module named constants (parameter).
+# Locals, derived-type components and the unnamed interface block are not listed.
+shapes.f90	1	package	shapes
+shapes.f90	6	constant	pi
+shapes.f90	7	constant	max_shapes
+shapes.f90	8	variable	shape_count
+shapes.f90	10	class	circle
+shapes.f90	14	method	perimeter
+shapes.f90	18	class	ring
+shapes.f90	22	class	base
+shapes.f90	25	interface	area
+shapes.f90	30	function	external_fn
+shapes.f90	38	function	area_circle
+shapes.f90	44	function	area_ring
+shapes.f90	49	function	circle_perimeter
+shapes.f90	54	function	describe
+shapes.f90	62	function	scale_all
+shapes.f90	68	function	factorial
+shapes.f90	80	package	shapes_impl
+shapes.f90	82	function	extra
+shapes.f90	87	package	main
+shapes.f90	98	function	report
+shapes.f90	104	function	legacy_sub
+shapes.f90	109	function	legacy_fn
+shapes.f90	114	package	init_data
+shapes.f90	119	package	config
+shapes.f90	121	constant	n_a
+shapes.f90	121	constant	n_b
+shapes.f90	122	variable	grid
+shapes.f90	123	variable	x1
+shapes.f90	123	variable	x2
+shapes.f90	124	constant	banner

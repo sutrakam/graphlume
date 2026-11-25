@@ -1,0 +1,23 @@
+# Rules for the synthetic payments-platform fixture. Two checks: handlers keep
+# out of the database, and the dependency graph has no new cycles.
+architecture:
+  components:
+    - name: handlers
+      include: ["services/checkout-api/internal/api/**"]
+      exclude: ["**/*_test.go"]
+    - name: services
+      include: ["services/checkout-api/internal/payments/**"]
+    - name: store
+      include: ["services/checkout-api/internal/store/**"]
+  rules:
+    - id: handlers-never-touch-the-database
+      description: Handlers call services, never the database layer directly.
+      from: [handlers]
+      forbidden: [store]
+      severity: high
+
+policy:
+  architecture:
+    severity: error
+  no_new_cycles:
+    level: package

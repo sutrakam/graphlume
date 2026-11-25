@@ -1,0 +1,16 @@
+# id	stack	repository	pin (tag or commit SHA)	why it is here
+django	Python, Django app	https://github.com/wagtail/bakerydemo	v7.3	Plain Django project with requirements and no virtualenv in the clone
+fastapi-fullstack	FastAPI + TypeScript frontend monorepo, uv	https://github.com/fastapi/full-stack-fastapi-template	0.12.0	Python backend (uv project) beside a React frontend: two compilers in one repo
+poetry	Python, Poetry project	https://github.com/python-poetry/poetry	2.5.2	Large pure-Python package managed by Poetry, src layout
+python-bare	Python, no virtualenv or pip setup	https://github.com/psf/requests	v2.34.2	Library cloned cold, nothing installed: the case scip-python used to fail on
+nextjs	Next.js app	https://github.com/vercel/commerce	f7521d57d29f0eb3d23c1399cf9bb299d61fcd21	App Router project, TypeScript, pnpm lockfile, generated files absent
+nuxt	Nuxt app	https://github.com/nuxt/movies	61bd0d8b9a6d9522b47ded19d50f0dfe465acbe0	tsconfig extends .nuxt/tsconfig.json, which exists only after nuxi prepare
+sveltekit	SvelteKit app	https://github.com/sveltejs/realworld	df796708040f5200ec572b28ab7f88ecee5794dd	tsconfig/jsconfig extends .svelte-kit, which exists only after svelte-kit sync
+pnpm-monorepo	pnpm workspaces monorepo	https://github.com/t3-oss/create-t3-turbo	8f945b7bb3bfb3ca8358d48b1ff0214079bc11ee	Many package tsconfigs under one workspace root
+ts-large	Large TypeScript frontend (over 10k files)	https://github.com/calcom/cal.com	@calcom/atoms@1.12.1	Large Node heap demand: the case that was killed by a signal
+go-multimodule	Go, many modules	https://github.com/open-telemetry/opentelemetry-go	v1.47.0	Dozens of go.mod files in one repository
+java-maven	Java, Maven	https://github.com/spring-projects/spring-petclinic	500158f732419217507c7656904b8e6aa1bcc0d6	Maven project: Java compiler indexing runs the repo's own build and is gated
+gradle-kotlin	Kotlin, Gradle (Gradle not installed)	https://github.com/spring-petclinic/spring-petclinic-kotlin	v3.2.0	Gradle is absent here: the expected result is a clear message, not a failure
+rust	Rust	https://github.com/BurntSushi/ripgrep	d095d52d8850cf0ee2afd5ad8fcf23c0e139518c	Cargo workspace of several crates
+csharp	C#	https://github.com/jasontaylordev/CleanArchitecture	v11.0.0	.NET solution; no .NET SDK installed here
+rails	Ruby, Rails	https://github.com/rubygems/rubygems.org	6f51e324634a0820c54be2fc28533b721abadc95	Rails application with Gemfile, no bundle install

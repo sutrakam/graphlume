@@ -1,0 +1,76 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.sutrakam/graphlume",
+  "title": "GraphLume",
+  "description": "Local code graph for AI coding agents: symbols, callers, impact and change safety over MCP.",
+  "version": "1.0.0",
+  "websiteUrl": "https://github.com/sutrakam/graphlume",
+  "repository": {
+    "url": "https://github.com/sutrakam/graphlume",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "oci",
+      "identifier": "ghcr.io/sutrakam/graphlume:1.0.0",
+      "runtimeHint": "docker",
+      "transport": {
+        "type": "stdio"
+      },
+      "runtimeArguments": [
+        {
+          "type": "named",
+          "name": "--mount",
+          "description": "Mounts the repository to serve at /workspace. It must already hold an index (.graphlume/index.db).",
+          "value": "type=bind,src={repository},dst=/workspace",
+          "isRequired": true,
+          "variables": {
+            "repository": {
+              "description": "Absolute path of the repository on the host",
+              "format": "filepath",
+              "isRequired": true
+            }
+          }
+        }
+      ],
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "serve"
+        }
+      ]
+    },
+    {
+      "registryType": "mcpb",
+      "identifier": "https://github.com/sutrakam/graphlume/releases/download/v1.0.0/graphlume_v1.0.0_darwin_universal.mcpb",
+      "fileSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "transport": {
+        "type": "stdio"
+      }
+    },
+    {
+      "registryType": "mcpb",
+      "identifier": "https://github.com/sutrakam/graphlume/releases/download/v1.0.0/graphlume_v1.0.0_windows_amd64.mcpb",
+      "fileSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "transport": {
+        "type": "stdio"
+      }
+    },
+    {
+      "registryType": "mcpb",
+      "identifier": "https://github.com/sutrakam/graphlume/releases/download/v1.0.0/graphlume_v1.0.0_linux_amd64.mcpb",
+      "fileSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "transport": {
+        "type": "stdio"
+      }
+    },
+    {
+      "registryType": "mcpb",
+      "identifier": "https://github.com/sutrakam/graphlume/releases/download/v1.0.0/graphlume_v1.0.0_linux_arm64.mcpb",
+      "fileSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "project": "noindex",
+  "index_path": "/work/project/.graphlume/index.db",
+  "index_status": "absent",
+  "schema_version": 0,
+  "files": 0,
+  "symbols": 0,
+  "relationships": 0,
+  "parse_failures": 0,
+  "partial_parses": 0,
+  "index_size_bytes": 0,
+  "accuracy_mode": "auto",
+  "mcp_profile": "minimal",
+  "capabilities": [
+    "code"
+  ]
+}

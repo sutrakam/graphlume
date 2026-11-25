@@ -1,0 +1,16 @@
+# Java: classes, interfaces, enums, records, annotation types, methods,
+# constructors and fields. An enum's constants are not extracted. A `new`
+# expression and an anonymous class are not definitions; the anonymous class's
+# own method is.
+Sample.java	6	class	Sample
+Sample.java	7	field	names
+Sample.java	9	method	Sample
+Sample.java	12	method	run
+Sample.java	15	method	run
+Sample.java	21	class	Inner
+Sample.java	22	method	depth
+Sample.java	27	interface	Visitor
+Sample.java	28	method	visit
+Sample.java	31	class	Mode
+Sample.java	36	class	Point
+Sample.java	39	interface	Marker

@@ -1,0 +1,34 @@
+# Protocol Buffers. message (nested too) -> class; enum (nested too) -> class;
+# service -> interface; rpc -> method; a field declared inside an extend block -> field.
+# Not definitions: ordinary message fields, oneof groups, enum values, reserved, option,
+# import and package statements, and the extend block itself (it has no name).
+shop.proto	11	class	Product
+shop.proto	19	class	Status
+shop.proto	25	class	Dimensions
+shop.proto	29	class	Unit
+shop.proto	46	class	Money
+shop.proto	51	class	Category
+shop.proto	59	interface	Catalog
+shop.proto	60	method	GetProduct
+shop.proto	61	method	ListProducts
+shop.proto	62	method	Upload
+shop.proto	65	method	Chat
+shop.proto	68	class	GetProductRequest
+shop.proto	72	class	ListProductsRequest
+shop.proto	77	class	UploadSummary
+shop.proto	81	class	Message
+shop.proto	85	interface	Empty
+shop.proto	88	field	table_name
+shop.proto	91	class	Legacy
+shop.proto	96	field	rank
+legacy.proto	5	class	Envelope
+legacy.proto	10	class	Header
+legacy.proto	15	class	Kind
+legacy.proto	27	field	trace_id
+legacy.proto	28	field	hops
+legacy.proto	31	class	TopLevelMode
+legacy.proto	36	interface	Relay
+legacy.proto	38	method	Send
+legacy.proto	40	method	Watch
+legacy.proto	45	interface	Metrics
+legacy.proto	46	method	Ping

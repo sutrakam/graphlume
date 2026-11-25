@@ -1,0 +1,79 @@
+{
+  "is_error": false,
+  "result": {
+    "index_revision": 1,
+    "index_status": "ready",
+    "items": [
+      {
+        "confidence": "medium",
+        "kind": "subtype",
+        "line": 115,
+        "name": "Seed",
+        "path": "internal/capability/impact/fromdiff.go",
+        "source": "source_code",
+        "why": "implements or extends Symbol — multiple matches among imports"
+      },
+      {
+        "confidence": "medium",
+        "kind": "subtype",
+        "line": 254,
+        "name": "Impacted",
+        "path": "internal/capability/impact/impact.go",
+        "source": "source_code",
+        "why": "implements or extends Symbol — multiple matches among imports"
+      },
+      {
+        "confidence": "medium",
+        "kind": "subtype",
+        "line": 85,
+        "name": "CoveringTest",
+        "path": "internal/capability/testgap/testgap.go",
+        "source": "source_code",
+        "why": "implements or extends Symbol — multiple matches among imports"
+      },
+      {
+        "confidence": "medium",
+        "kind": "subtype",
+        "line": 94,
+        "name": "Reached",
+        "path": "internal/capability/testgap/testgap.go",
+        "source": "source_code",
+        "why": "implements or extends Symbol — multiple matches among imports"
+      },
+      {
+        "confidence": "medium",
+        "kind": "subtype",
+        "line": 131,
+        "name": "TestHit",
+        "path": "internal/capability/tests/tests.go",
+        "source": "source_code",
+        "why": "implements or extends Symbol — multiple matches among imports"
+      }
+    ],
+    "notes": [
+      "A type relationship is recorded only where the source states it (extends, implements, an embedded type) or a compiler index proved it. Structural typing — a Go type that satisfies an interface without naming it, a TypeScript object that happens to fit — is visible only after 'graphlume scip import'. Treat an empty list as 'none declared', not 'none exist'.",
+      "1 other definition(s) share the name \"Symbol\"; this answer is for the one at internal/capability/symbols.go:19. Pass path to choose another.",
+      "Note: 5 result(s) are medium or low confidence (heuristic inference with higher error rates). Pass min_confidence='high' to restrict to compiler-verified and high-precision edges."
+    ],
+    "provenance": {
+      "age_seconds": 306,
+      "built_at_sha": "6fadd51b76b45129669a667d0a93a45050be12ae",
+      "caveat": "This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.",
+      "head_matches_build": true,
+      "head_sha": "6fadd51b76b45129669a667d0a93a45050be12ae"
+    },
+    "summary": "Symbol (internal/capability/symbols.go:19): 5 implementing or extending it, 0 it implements or extends.",
+    "verdict": {
+      "counts": {
+        "medium": 5
+      },
+      "next_step": "Treat these as leads, not facts. Run search for the symbol name to check for references GraphLume could not bind.",
+      "signals": [
+        "all 5 results are inferred (5 medium, 0 low); none was compiler-proven"
+      ],
+      "status": "weak"
+    }
+  },
+  "text": "=== SYSTEM METADATA ===\nSymbol (internal/capability/symbols.go:19): 5 implementing or extending it, 0 it implements or extends.\nindex_revision: 1  status: ready\nnote: A type relationship is recorded only where the source states it (extends, implements, an embedded type) or a compiler index proved it. Structural typing — a Go type that satisfies an interface without naming it, a TypeScript object that happens to fit — is visible only after 'graphlume scip import'. Treat an empty list as 'none declared', not 'none exist'.\nnote: 1 other definition(s) share the name \"Symbol\"; this answer is for the one at internal/capability/symbols.go:19. Pass path to choose another.\nnote: Note: 5 result(s) are medium or low confidence (heuristic inference with higher error rates). Pass min_confidence='high' to restrict to compiler-verified and high-precision edges.\nprovenance: This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.\nverdict: weak (medium=5)\nverdict_signal: all 5 results are inferred (5 medium, 0 low); none was compiler-proven\nnext_step: Treat these as leads, not facts. Run search for the symbol name to check for references GraphLume could not bind.\n\n=== INFERRED ===\n- subtype Seed  internal/capability/impact/fromdiff.go:115  [confidence=medium source=source_code]  (implements or extends Symbol — multiple matches among imports)\n- subtype Impacted  internal/capability/impact/impact.go:254  [confidence=medium source=source_code]  (implements or extends Symbol — multiple matches among imports)\n- subtype CoveringTest  internal/capability/testgap/testgap.go:85  [confidence=medium source=source_code]  (implements or extends Symbol — multiple matches among imports)\n- subtype Reached  internal/capability/testgap/testgap.go:94  [confidence=medium source=source_code]  (implements or extends Symbol — multiple matches among imports)\n- subtype TestHit  internal/capability/tests/tests.go:131  [confidence=medium source=source_code]  (implements or extends Symbol — multiple matches among imports)\n",
+  "tool": "implementations"
+}

@@ -1,0 +1,37 @@
+# GN: a definition is
+#   template("name") -> function
+#   a target declaration with a literal name, at any depth (executable, static_library,
+#     source_set, group, config, action, copy, test, toolchain, pool, and every
+#     user template such as proto_library("api_protos")) -> class
+#   a variable declared in declare_args() -> variable
+#   a plain `name = value` at the top level of the file -> variable
+# Not definitions: += and -= on a variable, assignments inside a target or template,
+# set_defaults("t") { }, tool("cc") { }, targets named by an expression or an
+# interpolation (source_set(target_name), action(target_name + "_gen")), foreach, if,
+# import, deps/configs labels.
+BUILD.gn	6	variable	use_new_renderer
+BUILD.gn	7	variable	max_threads
+BUILD.gn	8	variable	renderer_backend
+BUILD.gn	11	variable	enable_logging
+BUILD.gn	12	variable	common_defines
+BUILD.gn	14	class	app_config
+BUILD.gn	19	class	warnings
+BUILD.gn	23	class	core
+BUILD.gn	32	class	util
+BUILD.gn	37	class	plugin
+BUILD.gn	42	class	demo
+BUILD.gn	54	class	demo_unittests
+BUILD.gn	59	class	all
+BUILD.gn	66	class	generate_version
+BUILD.gn	71	class	assets
+BUILD.gn	77	class	renderer_v2
+BUILD.gn	83	class	win_config
+rules.gni	5	variable	generated_dir
+rules.gni	6	variable	verbose_rules
+rules.gni	9	variable	rule_version
+rules.gni	11	function	proto_library
+rules.gni	23	function	embed_files
+rules.gni	31	class	api_protos
+rules.gni	39	class	clang_arm
+rules.gni	45	class	link_pool
+rules.gni	49	class	rules_config

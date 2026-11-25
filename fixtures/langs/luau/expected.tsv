@@ -1,0 +1,38 @@
+# Luau definitions. Rule:
+#  - type T = ... and export type T<U> = ... are type_alias, whatever the right-hand side;
+#  - function f, local function f and `local f = function` (at any depth) are functions; function M.f is a function named f; function M:m is a method named m;
+#  - a top-level `f = function` / `M.f = function` is a function; a function-valued field of a table that is assigned or returned (3 levels, name or string key) is a function;
+#  - a top-level local or global initialised with a table constructor is a variable, with or without a type annotation;
+#  - return types, parameter types, other locals, non-function fields, anonymous functions and tables passed as call arguments are not definitions.
+types.luau	3	type_alias	Point
+types.luau	4	type_alias	Shape
+types.luau	5	type_alias	Callback
+types.luau	6	type_alias	Handler
+types.luau	7	type_alias	Names
+types.luau	8	type_alias	Lookup
+types.luau	9	type_alias	Maybe
+types.luau	10	type_alias	Both
+types.luau	11	type_alias	Pending
+types.luau	12	type_alias	Alias
+types.luau	14	variable	DEFAULT
+types.luau	17	function	area
+module.luau	3	type_alias	Item
+module.luau	5	variable	Inventory
+module.luau	9	variable	cache
+module.luau	10	variable	Registry
+module.luau	12	function	clamp
+module.luau	16	function	format
+module.luau	20	function	new
+module.luau	24	function	find
+module.luau	30	method	add
+module.luau	31	function	normalise
+module.luau	37	method	count
+module.luau	45	function	describe
+module.luau	49	function	merge
+module.luau	53	function	report
+module.luau	57	variable	Config
+module.luau	59	function	load
+module.luau	64	variable	handlers
+module.luau	65	function	onAdd
+module.luau	66	function	onRemove
+module.luau	75	function	create

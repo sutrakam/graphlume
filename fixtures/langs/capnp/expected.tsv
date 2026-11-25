@@ -1,0 +1,24 @@
+# Cap'n Proto: struct, enum, named union and named group (class), interface (interface), interface methods (method), const (constant), annotation declarations and 'using Name = Type' aliases (type_alias).
+# Not listed: fields, enumerants, members of an unnamed union, parameters, and 'using X = import' bindings.
+sample.capnp	8	constant	defaultPort
+sample.capnp	9	constant	greeting
+sample.capnp	11	type_alias	priority
+sample.capnp	13	class	Color
+sample.capnp	19	class	Point
+sample.capnp	24	class	Shape
+sample.capnp	31	class	rectangle
+sample.capnp	37	class	Style
+sample.capnp	45	class	Kind
+sample.capnp	50	constant	unitScale
+sample.capnp	53	interface	Canvas
+sample.capnp	54	method	draw
+sample.capnp	55	method	clear
+sample.capnp	56	method	bounds
+sample.capnp	58	interface	Layer
+sample.capnp	59	method	toggle
+sample.capnp	63	interface	Renderer
+sample.capnp	64	method	render
+sample.capnp	67	class	Pair
+sample.capnp	72	class	Request
+sample.capnp	73	type_alias	Name
+sample.capnp	75	class	contact

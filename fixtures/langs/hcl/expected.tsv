@@ -1,0 +1,36 @@
+# HCL (Terraform and friends). A definition is a labelled block at the top level of the file, or an
+# entry of a top-level locals block. Names follow Terraform's own addresses, which keeps a resource
+# and a variable of the same name apart:
+#   resource "t" "n" -> t.n (class)       data "t" "n" -> data.t.n (class)
+#   module "n" -> module.n (package)      provider "p" -> provider.p, or provider.p.<alias> (package)
+#   variable "n" -> var.n (variable)      output "n" -> output.n (constant)
+#   locals { n = ... } -> local.n (constant)
+#   any other labelled block (check, include, dependency, source, job) -> keyword.labels (class)
+# Not definitions: blocks with no label (terraform, locals, build, moved, import), blocks nested in
+# another block (ingress, provisioner, lifecycle, backend, dynamic, group, task), top-level
+# attributes (inputs = ..., the values in a .tfvars file), and anything inside a heredoc or comment.
+main.tf	16	package	provider.aws
+main.tf	26	package	provider.aws.west
+main.tf	31	variable	var.region
+main.tf	36	variable	var.instance_count
+main.tf	46	constant	local.name_prefix
+main.tf	47	constant	local.common_tags
+main.tf	50	constant	local.count_double
+main.tf	53	class	data.aws_ami.ubuntu
+main.tf	62	class	aws_instance.web
+main.tf	80	class	aws_security_group.web
+main.tf	97	package	module.network
+main.tf	102	package	module.registry_module
+main.tf	107	constant	output.instance_id
+main.tf	112	constant	output.sg_name
+main.tf	126	class	check.health
+config.hcl	2	class	include.root
+config.hcl	6	class	dependency.vpc
+config.hcl	18	class	source.amazon-ebs.base
+config.hcl	30	class	job.cache
+config.hcl	38	variable	var.tiny
+config.hcl	40	variable	var.unquoted
+config.hcl	45	constant	local.a
+config.hcl	49	constant	local.b
+config.hcl	52	constant	output.script
+config.hcl	59	class	null_resource.count

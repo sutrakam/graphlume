@@ -1,0 +1,61 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group = 'com.acme'
+version = '1.0'
+ext.javaVersion = 17
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.slf4j:slf4j-api:2.0.9'
+    testImplementation "junit:junit:4.13"
+}
+
+task hello {
+    doLast {
+        println 'hello'
+    }
+}
+
+task copyDocs(type: Copy) {
+    from 'src/docs'
+    into "$buildDir/docs"
+}
+
+task('legacy') {
+    description = 'legacy style'
+}
+
+tasks.register('lint') {
+    dependsOn hello
+    doLast { println 'lint' }
+}
+
+tasks.register('format', Exec) {
+    commandLine 'fmt'
+}
+
+tasks.create('bundle') {
+    doLast { }
+}
+
+project.task('viaProject') << {
+    println 'x'
+}
+
+tasks.named('test') {
+    useJUnit()
+}
+
+def computeVersion() {
+    return "${project.version}-SNAPSHOT"
+}
+
+String describe(String name) { "task $name" }
+
+def helperClosure = { String s -> s.trim() }

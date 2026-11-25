@@ -1,0 +1,2382 @@
+// Package infer binds unresolved references to symbol definitions using
+// imports and receiver-type inference, and attaches a confidence level to every
+// binding it makes.
+//
+// This package is where GraphLume's central promise is either kept or broken.
+// Tree-sitter produces a syntax tree per file; it cannot tell you that
+// `svc.updateStatus()` refers to `com.pay.TransactionService#updateStatus`.
+// Everything an agent actually wants — who calls this, what breaks if I change
+// it, which tests cover it — rests on that binding being right.
+//
+// The design principle is therefore NOT "resolve as much as possible". It is
+// "never claim more than the evidence supports". A wrong edge presented as fact
+// is worse than a missing one: an impact analysis that misses a caller makes a
+// developer cautious, while one that invents a caller makes them distrust the
+// entire tool.
+//
+// Concretely, that means:
+//
+//   - A reference whose name matches 200 symbols produces NO edge. Emitting 200
+//     weak edges would flood the graph and make every downstream traversal
+//     useless. It is recorded as ambiguous, which is a fact worth having.
+//   - Confidence reflects the actual disambiguating evidence, not a default.
+//   - Nothing here ever emits ConfidenceExact. That is reserved for
+//     compiler-backed SCIP data and enforced in Go and in SQL.
+package infer
+
+import (
+	"context"
+	"fmt"
+	"path"
+	"sort"
+	"strings"
+
+	"github.com/sutrakam/graphlume/internal/registry"
+	"github.com/sutrakam/graphlume/pkg/model"
+)
+
+// MaxCandidates is the point past which a name is treated as too common to
+// resolve.
+//
+// Names like `Get`, `Save`, `handle` and `process` occur hundreds of times in a
+// large repository. Binding to an arbitrary one would be a coin flip dressed up
+// as an answer, and binding to all of them would add hundreds of edges per call
+// site — a graph that is technically complete and practically unusable.
+//
+// Eight is chosen because genuine overload sets and small interface hierarchies
+// stay under it, while genuinely generic names blow past it immediately.
+//
+// This is the CEILING, and it is a cross-package contract: internal/pipeline
+// sizes its candidate cache at MaxCandidates+1 rows per name. A language may
+// lower its own cap through LanguageSpec.MaxCandidates; it may not raise it
+// past this, because the rows would not be there. TestSpecsRespectCandidateCap
+// enforces that.
+const MaxCandidates = 8
+
+// Options configures resolution.
+type Options struct {
+	// MinConfidence drops bindings weaker than this instead of recording them.
+	// Defaults to ConfidenceLow (record everything, labelled).
+	MinConfidence model.Confidence
+
+	// Layout is what the run knows about the repository as a whole, and is
+	// what lets a call qualified by a package be recorded as EXTERNAL when the
+	// package is not here. Nil records nothing as external. See layout.go.
+	Layout *Layout
+
+	// Ancestry enables the deferred pass for inherited method dispatch. Nil
+	// disables it entirely: nothing is parked and ResolveDeferred is a no-op,
+	// so a caller that has not been wired up resolves exactly as before. See
+	// inherited.go.
+	Ancestry Ancestry
+}
+
+// Stats reports what a resolution pass achieved. Every field is counted.
+type Stats struct {
+	References int64
+	Resolved   int64
+	Ambiguous  int64
+	Unresolved int64
+	Edges      int64
+
+	// External counts the unresolved calls whose qualifier was shown to name
+	// something outside the repository — the standard library, a declared
+	// dependency, a type imported from one. A subset of Unresolved: a call
+	// that leaves the repository is bound to nothing here, and is counted
+	// with everything else that is, and then separately as the part of that
+	// number which is not a gap in the index.
+	External int64
+
+	// Instantiations counts the calls bound to a TYPE rather than a callable:
+	// `Account(...)`, `Type::new()`. They are written as INSTANTIATES edges,
+	// not CALLS, and are a subset of Resolved.
+	Instantiations int64
+
+	// Deferred counts references parked for the inherited-dispatch pass, and
+	// Inherited/InheritedAmbiguous what draining them produced. An inherited
+	// binding also moves Resolved and Ambiguous, so these three describe WHERE
+	// the second pass acted without double-counting the outcome.
+	Deferred           int64
+	Inherited          int64
+	InheritedAmbiguous int64
+
+	// A8 — CapExceeded and CapDropped separate the two reasons a reference ends
+	// up in Ambiguous, which until now were indistinguishable.
+	//
+	// Ambiguous conflates "two candidates and no evidence to choose" with "this
+	// name has 200 definitions and was never weighable at all". They are
+	// different products of failure and call for different fixes: the first
+	// wants better evidence, the second wants a narrower query or an accepted
+	// gap. Reporting one number for both hides which one a repository has.
+	//
+	// CapExceeded counts references whose RAW candidate set was larger than the
+	// language's LanguageSpec.MaxCandidates. CapDropped counts the subset the
+	// receiver could not then rescue, and is therefore the part that actually
+	// lands in Ambiguous — CapExceeded minus CapDropped is what narrowByReceiver
+	// saved. Both are pure counters: nothing below reads them, so they cannot
+	// change a binding.
+	//
+	// This matters more than it did, because `graphlume accuracy` now publishes
+	// recall, and a cap-drop is a named, countable component of the calls that
+	// produce no edge.
+	CapExceeded int64
+	CapDropped  int64
+
+	// CapGuided is the part of CapExceeded that the source itself rescued: the
+	// name is over the cap, the first pass refused it, and a second look at the
+	// definitions in the files the source points to (the file, its directory,
+	// its imports, the receiver's type) bound it. CapExceeded minus CapDropped
+	// is what narrowByReceiver and this saved together. See guided.go.
+	CapGuided int64
+
+	// CrossLanguageDropped counts candidates refused because the two languages
+	// share no module system. Reported so the exclusion is visible rather than
+	// silent — the same reason CapDropped exists.
+	CrossLanguageDropped int64
+
+	// ReturnTyped counts calls bound through the type the call that assigned
+	// their receiver declares it returns. See returned.go.
+	ReturnTyped int64
+
+	ByConfidence map[model.Confidence]int64
+}
+
+// Candidates supplies the symbols a name could refer to.
+//
+// Declared here, at the consumer, rather than in the registry: this package
+// needs one question answered and should not be able to reach anything else.
+// It is what lets resolution hold a bounded working set instead of the whole
+// run — see registry.CandidateCache.
+type Candidates interface {
+	// Candidates returns the possible targets for each name. A name with no
+	// candidates may be absent from the map or present with an empty slice;
+	// the two mean the same thing.
+	Candidates(ctx context.Context, names []string) (map[string][]registry.SymbolIndexEntry, error)
+}
+
+// Spelled is the optional port a Candidates source offers for a language whose
+// names are case-insensitive (LanguageSpec.FoldNames). A source without it
+// resolves such a language by exact name, as it always did.
+type Spelled interface {
+	// Spellings groups the names the language's definitions are written under
+	// by their lower-cased form, each group sorted.
+	Spellings(ctx context.Context, language string) (map[string][]string, error)
+}
+
+// Resolver binds references for one index run.
+//
+// A Resolver carries the queue of references parked for the inherited-dispatch
+// pass, so it is stateful across ResolveFile calls and is NOT safe for
+// concurrent use. That matches how it is driven: pipeline.Resolve streams files
+// through one resolver sequentially, and the queue's order — which is
+// reference order — is what makes the second pass deterministic.
+type Resolver struct {
+	candidates Candidates
+	ancestry   Ancestry
+	layout     *Layout
+	opts       Options
+
+	// specs answers every question resolution has about a language. Held per
+	// Resolver rather than reached through a package-level table, so nothing
+	// here depends on global state or on package init order. See language.go.
+	specs *Specs
+
+	// deferred holds references awaiting ancestry, in reference order. See
+	// inherited.go for why they cannot be settled during the main loop.
+	deferred []deferredRef
+
+	// supertypes remembers each type's direct supertypes for the length of one
+	// ResolveDeferred, so a chunk does not ask again what an earlier one
+	// learned. Nil outside a drain. See ancestryClosure.
+	supertypes map[string][]string
+
+	// interfaces remembers which type names are interfaces, for one drain.
+	interfaces map[string]bool
+
+	// traits remembers which of them are PHP traits, for one drain.
+	traits map[string]bool
+
+	// reexportGraph is the run's export and part directives, read on the first
+	// file that needs them. See reexport.go.
+	reexportGraph  *reexportGraph
+	reexportLoaded bool
+
+	// reachGraphs is the same, per language, for the module languages whose
+	// imports are directives (Nim's `export`, D's `public import`); see filemodules.go.
+	reachGraphs map[string]*reexportGraph
+	reachMemo   map[string][]string
+
+	// importGraphs is each transitive language's import rows, read on first use.
+	// See transitive.go.
+	importGraphs map[string]*reexportGraph
+	importStems  map[string]map[string][]string
+
+	// hclModules are the module blocks of each Terraform directory, by name, built
+	// from the rows of its files on first use. See hcl.go.
+	hclModules map[string]map[string]string
+
+	// guide is the candidate source's guided port, nil when it has none; gfiles
+	// is the run's file index built from it on first use. See guided.go.
+	guide  GuidedCandidates
+	gfiles *guidedFiles
+
+	// retrying is true while a reference is being looked at again over the
+	// candidates its source points to. Rules that exist only for that second
+	// look (pickNamedImport) and the refusal of uniqueness claims read it.
+	retrying bool
+}
+
+// New builds a Resolver over a preloaded symbol index.
+//
+// Retained for callers that already hold the whole run in memory — tests, and
+// anything resolving a tree small enough that loading it is free. Streaming
+// callers should use NewStreaming, which is what keeps memory flat.
+func New(symbols map[string][]registry.SymbolIndexEntry, opts Options) *Resolver {
+	return NewStreaming(mapCandidates(symbols), opts)
+}
+
+// NewStreaming builds a Resolver that asks for candidates as it needs them.
+func NewStreaming(c Candidates, opts Options) *Resolver {
+	if !opts.MinConfidence.Valid() {
+		opts.MinConfidence = model.ConfidenceLow
+	}
+	r := &Resolver{candidates: c, ancestry: opts.Ancestry, layout: opts.Layout, opts: opts, specs: NewSpecs()}
+	r.guide, _ = c.(GuidedCandidates)
+	return r
+}
+
+// mapCandidates adapts a preloaded index to the Candidates port.
+type mapCandidates map[string][]registry.SymbolIndexEntry
+
+func (m mapCandidates) Candidates(_ context.Context, names []string) (map[string][]registry.SymbolIndexEntry, error) {
+	out := make(map[string][]registry.SymbolIndexEntry, len(names))
+	for _, n := range names {
+		if c := m[n]; len(c) > 0 {
+			out[n] = c
+		}
+	}
+	return out, nil
+}
+
+// Spellings groups the preloaded index's names for one language.
+func (m mapCandidates) Spellings(_ context.Context, language string) (map[string][]string, error) {
+	out := map[string][]string{}
+	for name, cs := range m {
+		for _, c := range cs {
+			if languageOfCandidate(c) == language {
+				key := strings.ToLower(name)
+				out[key] = append(out[key], name)
+				break
+			}
+		}
+	}
+	for _, names := range out {
+		sort.Strings(names)
+	}
+	return out, nil
+}
+
+// PerNameLimit is zero: a preloaded index is never cut.
+func (m mapCandidates) PerNameLimit() int { return 0 }
+
+// Files lists the files the preloaded index mentions, for the guided lookups.
+func (m mapCandidates) Files(_ context.Context) ([]registry.FileRec, error) {
+	seen := map[int64]registry.FileRec{}
+	for _, cs := range m {
+		for _, c := range cs {
+			seen[c.FileID] = registry.FileRec{ID: c.FileID, Path: c.FilePath, Language: c.Language}
+		}
+	}
+	out := make([]registry.FileRec, 0, len(seen))
+	for _, f := range seen {
+		out = append(out, f)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out, nil
+}
+
+// InFiles filters the preloaded index to the files asked for.
+func (m mapCandidates) InFiles(_ context.Context, names []string, fileIDs []int64) (map[string][]registry.SymbolIndexEntry, error) {
+	want := make(map[int64]struct{}, len(fileIDs))
+	for _, id := range fileIDs {
+		want[id] = struct{}{}
+	}
+	out := map[string][]registry.SymbolIndexEntry{}
+	for _, n := range names {
+		for _, c := range m[n] {
+			if _, ok := want[c.FileID]; ok {
+				out[n] = append(out[n], c)
+			}
+		}
+		sort.Slice(out[n], func(i, j int) bool { return out[n][i].ID < out[n][j].ID })
+	}
+	return out, nil
+}
+
+// candidate pairs a possible target with the reason it was preferred.
+type candidate struct {
+	entry      registry.SymbolIndexEntry
+	confidence model.Confidence
+	reason     string
+}
+
+// # Why candidates are not filtered before the tiers
+//
+// Two guards that drop candidates before pick() weighs them were evaluated. Both
+// were plausible, and both were rejected on measurement
+// against compiler ground truth. They are recorded here, with their numbers, so
+// that neither is re-derived from first principles.
+//
+// A18 — "a bare call cannot name a method". In Go and Rust a call with no
+// receiver cannot be a method call, so method candidates could be dropped
+// outright. The rule reads ref.Receiver == "" as "the source wrote no
+// receiver". It does not mean that. receiverQueries (internal/parse/queries.go)
+// captures only a SIMPLE IDENTIFIER receiver — the Go pattern is
+// `operand: (identifier)` — so in s.repo.Save(id) the operand is a
+// selector_expression, nothing matches, and Receiver is left empty. An empty
+// receiver conflates "no receiver in the source" with "a receiver the query
+// cannot express", and chained calls are ordinary Go. Measured: it took
+// `graphlume callers Save` on the CLI fixture from two bound callers to zero.
+// Unit tests over synthetic references passed throughout, because they set
+// Receiver directly; only the end-to-end path exercises the parser that leaves
+// it empty. The rule becomes sound the moment parse can distinguish the two
+// cases — an explicit "receiver present but unparsed" signal would do it.
+//
+// A19 — "production code must not bind to a test definition". Test trees are
+// full of stubs and doubles that reuse production names, so a candidate in a
+// test file was dropped when the referencing file was not test code. The
+// premise is true and the guard still lost precision. Measured on prometheus,
+// 727 Go files, adjudicated against a 57 MB scip-go index, same corpus and same
+// index for both arms:
+//
+//	                 baseline    with A19    delta
+//	high             86.7%       84.3%       -2.4pp
+//	medium            8.0%        8.0%        0
+//	all              64.9%       62.5%       -2.4pp
+//
+// In the high tier: judged 12496 -> 12922, agree 10830 -> 10894, disagree
+// 1666 -> 2028. A19 newly resolved 426 references, of which 64 were right and
+// 362 were wrong — a 15% hit rate on everything it added.
+//
+// The mechanism is the part worth keeping. A19 did not only delete wrong
+// candidates. By SHRINKING the candidate set it tips references across the
+// disambiguation thresholds — under MaxCandidates, or into a tier that now
+// matched uniquely — so references that would be recorded as AMBIGUOUS begin to
+// resolve, mostly to the wrong production candidate. It converts honest
+// ambiguity into confident wrong answers, which is precisely what the package
+// doc forbids.
+//
+// The general lesson, which is not obvious: a
+// filter that removes candidates is not automatically safe. Removing candidates
+// also removes the AMBIGUITY that was protecting the caller. Every exclusion
+// rule must therefore be measured on end-to-end precision, not justified by the
+// soundness of the thing it excludes.
+//
+// A3 — "give Go a receiver type environment". Not a filter, and rejected
+// anyway, which is why it is recorded here rather than filed as unrelated: the
+// two rules above are about deleting candidates, and this is the third way to
+// lose precision, by changing which TIER decides.
+//
+// A varTypeQuery for Go in internal/parse, built from declarations and
+// composite literals — `svc *Service`, `var q *Queue`, `c := &Client{}` — so a
+// receiver arrives as its type instead of as `svc`, `q`, `c`. The parser half
+// worked exactly as designed. Measured on GraphLume's own source, 419 Go files,
+// against a 17 MB scip-go 0.2.7 index, one frozen tree and one index across all
+// arms:
+//
+//	                          high    high    medium   all
+//	                          prec    recall  prec     recall
+//	baseline                  98.6%   60.4%   35.4%    60.6%
+//	+ Go type environment     98.3%   60.2%   50.0%    60.5%
+//	+ ReceiverDenotesType     98.3%   60.6%   54.5%    61.0%
+//
+// `medium` improved from 35.4% to 54.5% and all-tiers recall gained 0.4pp. The
+// price was `high`: 18 correct edges gained and 14 wrong ones, a 56% hit rate
+// on everything added, into a tier measuring 98.6%. A tier is only worth its
+// label while what it admits meets that label, so both arms were rejected.
+//
+// The MECHANISM is the reusable part. Tier 2 (receiver) sits ABOVE tiers 3 and
+// 4 (import, same directory). In Go the directory IS the package, so proximity
+// is strong evidence — and while Go receivers arrived as `s` and `c`, tier 2
+// almost never fired and proximity effectively decided. Supplying real type
+// names woke tier 2 up, and a file-stem coincidence (`Store` matching store.go)
+// began out-ranking the in-package definition that was correct.
+//
+// That is the SAME result the import-vs-proximity ordering already records,
+// reached from a new direction: in a directory-is-package language, INFERRED
+// type evidence must not outrank package proximity. So A3 is not "Go type
+// inference does not work" — it is "the tier order was tuned for a receiver
+// that carried no type". Retrying it means moving tier 2 below pickSameDir
+// where PackageIsDirectory holds, and measuring THAT.
+//
+// A3 also disproved a safety property this package had been assuming. The
+// argument for inferring types at all is that a mis-inference is inert, because
+// receiverMatches validates rather than contains (A16). That holds for `high`
+// and not in general: a receiver matching two candidates by file stem takes
+// tier 2's overload branch and emits a deterministic preference at `medium`.
+// TestMisInferredReceiverYieldsNoEdge pins both halves.
+//
+// # What changed when the parser began to say what a call was made on
+//
+// A18's own note ends "the rule becomes sound the moment parse can distinguish
+// the two cases". It can now: every call reference carries the shape of its
+// receiver (Reference.ReceiverKind, migration 0001), and an empty receiver
+// means "the source wrote none" exactly when the kind is ReceiverBare. Calls
+// with a recorded shape are therefore bound by shaped.go, one rule per shape,
+// and the tiers in pick() below do not see them.
+//
+// pick() still runs, for two things: supertype references, which have no
+// receiver and are weighed by name; and a call from an
+// index written before the migration, whose shape is unknown — for which the
+// name tiers are the only evidence there is, and whose answer ResolveFile caps
+// at `low`.
+//
+// The lesson of A19 was not argued away. shaped.go removes candidates (a
+// member is unreachable from a bare call in Go, a free function is unreachable
+// from a call made on a value), and removing candidates does change which
+// references resolve. It was measured rather than reasoned about: by hand on
+// nine public projects and against scip-go and scip-python, recorded in
+// docs/accuracy.md under "Receivers".
+//
+// ResolveFile binds every reference in one file.
+//
+// Returns the edges to write and the per-reference outcomes to record. Both are
+// returned rather than written, so the caller owns transaction boundaries and
+// this package stays pure and testable.
+//
+// Outcomes come back as a slice in reference order, not a map. The order is not
+// cosmetic: the registry applies them to the reference table in reference-id
+// order, and a map handed it a fresh random permutation on every batch. See
+// registry.MarkResolutions.
+func (r *Resolver) ResolveFile(
+	ctx context.Context,
+	fr registry.FileRefs,
+	stats *Stats,
+) ([]model.Edge, []registry.RefOutcome, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
+
+	// Select this file's language strategy once. Every per-language question
+	// below reads a field of it rather than re-switching on the name, which is
+	// what stops the three switches this replaced from drifting apart again.
+	spec := r.specs.For(languageOfFile(fr))
+
+	// Index this file's imports once; every reference in the file consults them.
+	fileImports := fr.Imports
+	var routes []dartRoute
+	if spec.ReExports {
+		fileImports, routes = r.reexports(ctx, spec, fileImports)
+	}
+	if fileModuleLanguages[spec.Name] || spec.Name == "gdscript" || spec.Name == "hcl" {
+		// What a module re-exports, a script extends, or a directory's module blocks name
+		// (filemodules.go, gdscript.go, hcl.go).
+		r.loadReach(ctx, spec.Name)
+	}
+	imports := buildImportSet(spec, fileImports)
+	if spec.TransitiveImports {
+		imports.reached = r.reachedFiles(ctx, spec, fr, fileImports)
+	}
+	imports.layout = r.layout
+	if spec.QualifiedMembers {
+		imports.base = pathSegments(path.Dir(fr.Path))
+	}
+
+	// Ask for this file's names in ONE request, before resolving any of them.
+	// Per-reference lookups would be a query per reference, which is the design
+	// the preloaded index existed to avoid; per-file keeps that property while
+	// bounding what is resident to the names one file mentions.
+	symbols, err := r.candidates.Candidates(ctx, r.AppendNames(nil, nil, fr))
+	if err != nil {
+		return nil, nil, fmt.Errorf("candidates for %s: %w", fr.Path, err)
+	}
+
+	if spec.FoldNames {
+		if err := r.foldCandidates(ctx, spec, fr, symbols); err != nil {
+			return nil, nil, fmt.Errorf("spellings for %s: %w", fr.Path, err)
+		}
+	}
+	if spec.ReExports {
+		// `show` and `hide`: a name an import does not let through is not
+		// among the candidates for the tiers to bind.
+		r.hideCandidates(spec, fr, routes, symbols)
+	}
+
+	facts := newFileFacts(fr)
+	edges := make([]model.Edge, 0, len(fr.Refs))
+	outcomes := make([]registry.RefOutcome, 0, len(fr.Refs))
+
+	// produced is what each call in this file was bound to, so a call on a
+	// variable initialised from one can be typed by what it returns; and
+	// typesNamed finds the types a return type names, which the file itself
+	// may never mention. See returned.go.
+	produced := producedBy{}
+	typesNamed := func(name string) []registry.SymbolIndexEntry {
+		if got, ok := symbols[name]; ok {
+			return got
+		}
+		more, err := r.candidates.Candidates(ctx, []string{name})
+		if err != nil {
+			// A failed lookup is no type: the call is bound as it was before.
+			return nil
+		}
+		symbols[name] = more[name]
+		return more[name]
+	}
+
+	// implementer is the type a supertype reference was declared for, when the
+	// parser recorded one (Rust's `impl Trait for Type`); set per reference.
+	implementer := ""
+
+	// bind records a decided reference: the outcome always, and an edge when
+	// the call site sits inside a symbol that can be named as its source.
+	bind := func(ref registry.Reference, best candidate) {
+		if r.retrying && claimsRepositoryUniqueness(best.reason) {
+			// "The only one in the repository" is not something a set chosen by
+			// the source can show. Refused: the reference stays ambiguous.
+			stats.Ambiguous++
+			outcomes = append(outcomes, registry.RefOutcome{
+				RefID: ref.ID, Resolution: registry.ResolutionAmbiguous})
+			return
+		}
+		stats.Resolved++
+		if stats.ByConfidence == nil {
+			stats.ByConfidence = map[model.Confidence]int64{}
+		}
+		stats.ByConfidence[best.confidence]++
+
+		outcomes = append(outcomes, registry.RefOutcome{
+			RefID:      ref.ID,
+			SymbolID:   best.entry.ID,
+			Resolution: registry.ResolutionResolved,
+		})
+		if edgeKindFor(ref.Kind) == model.EdgeCalls {
+			produced[[2]int{ref.Line, ref.Col}] = best
+		}
+
+		// Attribute the call site to the symbol containing it. A reference
+		// outside any indexed symbol (a package-level initialiser, a
+		// top-level statement, a callback passed to describe() or it()) is
+		// attributed to the file's synthetic caller, which `resolve` creates
+		// for exactly those files; a file without one yields no edge, and the
+		// resolution is still recorded.
+		src, ok := callerOf(fr, ref.Line)
+		if kind := edgeKindFor(ref.Kind); kind == model.EdgeExtends || kind == model.EdgeImplements {
+			// A supertype belongs to the type whose header names it, which on
+			// a one-line class is not the last method on the line.
+			if id, found := headerOwner(fr.Symbols, ref.Line, ref.Col); found {
+				src, ok = id, true
+			}
+		}
+		if implementer != "" {
+			// `impl Trait for Type`: the edge starts at Type, which is not
+			// what encloses the line.
+			src, ok = implementerSource(spec, fr, implementer, symbols)
+		}
+		if !ok {
+			return
+		}
+		kind := edgeKindFor(ref.Kind)
+		if kind == model.EdgeCalls && isConstructibleKind(best.entry.Kind) {
+			// A call bound to a type constructs it. Recorded under its own
+			// kind, so "what calls this function" is answered from edges that
+			// point at callables.
+			kind = model.EdgeInstantiates
+			stats.Instantiations++
+		}
+		edges = append(edges, model.Edge{
+			SrcID:      src,
+			DstID:      best.entry.ID,
+			Kind:       kind,
+			Confidence: best.confidence,
+			Evidence: model.Evidence{
+				FilePath: fr.Path,
+				Range: model.Range{
+					Start: model.Position{Line: ref.Line, Col: ref.Col},
+					End:   model.Position{Line: ref.Line, Col: ref.Col},
+				},
+				Source: model.SourceSourceCode,
+				Detail: best.reason,
+			},
+		})
+		stats.Edges++
+	}
+	ambiguous := func(ref registry.Reference) {
+		stats.Ambiguous++
+		outcomes = append(outcomes, registry.RefOutcome{
+			RefID: ref.ID, Resolution: registry.ResolutionAmbiguous})
+	}
+	unresolved := func(ref registry.Reference, external bool) {
+		stats.Unresolved++
+		if external {
+			stats.External++
+		}
+		outcomes = append(outcomes, registry.RefOutcome{
+			RefID: ref.ID, Resolution: registry.ResolutionUnresolved, External: external})
+	}
+
+	// resolveRef binds one reference and records the outcome. It is a closure so
+	// the guided second look (guided.go) can run the very same rules again over a
+	// different candidate set.
+	resolveRef := func(ref registry.Reference) {
+
+		// The type an impl block is written for rides in the receiver, which
+		// no tier below should read for a relation that has none.
+		implementer = ""
+		if ref.ReceiverKind == model.ReceiverImplementer {
+			implementer = ref.Receiver
+			ref.Receiver, ref.ReceiverKind = "", ""
+		}
+
+		// Every indexed symbol of this name is a candidate, and the tiers below
+		// weigh all of them. Nothing is excluded up here — see "Why candidates
+		// are not filtered before the tiers" above for the two guards that
+		// tried, and what they cost.
+		cands := symbols[ref.Name]
+
+		// A use of a name the file imported under another name is bound through
+		// that import and by no other rule. See renamed.go.
+		if d, handled := r.viaRenamedImport(spec, fr, imports, ref, symbols); handled {
+			switch {
+			case d.verdict == verdictBound && d.best.confidence.AtLeast(r.opts.MinConfidence):
+				bind(ref, d.best)
+			case d.verdict == verdictExternal:
+				unresolved(ref, true)
+			case d.verdict == verdictUnresolved:
+				unresolved(ref, false)
+			default:
+				ambiguous(ref)
+			}
+			return
+		}
+
+		// The ONE exclusion made before the tiers, and it is not a heuristic
+		// about likelihood — it is a fact about what a reference can denote. A
+		// Vue component cannot call a Python function: the two share no
+		// mechanism by which one could resolve the other, however well the
+		// names match. And a call cannot denote a table column, a
+		// configuration key or a dependency line in a manifest, in any
+		// language. See LanguageSpec.canBind and languageFamilies.
+		//
+		// A18 and A19 both filtered here and both were rejected, so the bar is
+		// high. The difference is falsifiability: those guards guessed that a
+		// candidate was UNLIKELY (a bare name is not a method; production does
+		// not call into tests) and were wrong about the parser and about
+		// ambiguity respectively. This one drops candidates that are
+		// IMPOSSIBLE.
+		//
+		// Measured causes: `readiness.exceptions(...)` in a .vue file bound to
+		// a Python function named `exceptions` in another service at `high`,
+		// and surfaced as an architecture violation reading "the warehouse UI
+		// reaches into catalog-service"; libc `write` bound to a Python
+		// function; `req.text()` to a Prisma column; and every JavaScript `low`
+		// binding in express to a dependency line in package.json.
+		edgeKind := edgeKindFor(ref.Kind)
+		if len(cands) > 0 {
+			kept := cands[:0:0]
+			for _, c := range cands {
+				if spec.canBind(c, edgeKind) && !unreachablePrivate(c, fr.Path) && !r.privateElsewhere(spec, ref.Name, fr.Path, c) {
+					kept = append(kept, c)
+				}
+			}
+			if len(kept) != len(cands) {
+				stats.CrossLanguageDropped += int64(len(cands) - len(kept))
+			}
+			cands = kept
+		}
+
+		// A call that is not a macro invocation never reaches a macro: a
+		// `name(...)` and a `name!(...)` are different names (macro.go). Done
+		// here and not only in the shaped path, so that no strategy below can
+		// bind a function call to a macro_rules! of the same name.
+		if edgeKind == model.EdgeCalls && !isMacroInvocation(ref.Kind) {
+			cands = withoutMacros(cands)
+		}
+
+		// A type written as a field's, a parameter's or a variable's type
+		// names a type, never the constructor indexed under the same name.
+		if isTypeUse(ref.Kind) {
+			cands = typeCandidates(cands)
+		}
+
+		// A type is not its own supertype. `class Flask(flask.Flask)` declares
+		// a Flask that extends ANOTHER Flask, and the name alone bound it to
+		// itself: the clause's qualifier is not captured, and the nearest
+		// definition of the name is the class being declared.
+		if edgeKind == model.EdgeExtends || edgeKind == model.EdgeImplements {
+			if self, ok := enclosing(fr.Symbols, ref.Line); ok {
+				for i, c := range cands {
+					if c.ID == self {
+						cands = append(cands[:i:i], cands[i+1:]...)
+						break
+					}
+				}
+			}
+		}
+
+		// A supertype written with a qualifier is the type that qualifier
+		// names, and not an unqualified namesake (supertype.go).
+		if (edgeKind == model.EdgeExtends || edgeKind == model.EdgeImplements) && ref.Receiver != "" {
+			kept, v := r.qualifiedSupertype(spec, ref, cands)
+			switch v {
+			case verdictExternal:
+				unresolved(ref, true)
+				return
+			case verdictUnresolved:
+				unresolved(ref, false)
+				return
+			}
+			cands = kept
+			// The marker has said what it had to; what follows reads the
+			// qualifier as a path.
+			ref.Receiver = strings.TrimPrefix(ref.Receiver, rootedQualifier)
+		}
+
+		// A call through a local value — a parameter, a loop variable — names no
+		// definition, and the parser said so. It is a call site, and it is
+		// bound to nothing.
+		if strings.HasSuffix(ref.Kind, indirectCallSuffix) {
+			unresolved(ref, false)
+			return
+		}
+
+		// A Terraform reference names a block of the module directory, by its address, and
+		// no rule below knows an address: see hcl.go. The `.hcl` files of Packer, Nomad and
+		// Terragrunt are not Terraform's and their traversals are not read.
+		if spec.Name == "hcl" && edgeKind == model.EdgeReferences {
+			if !isTerraformFile(fr.Path) {
+				outcomes = append(outcomes, registry.RefOutcome{RefID: ref.ID, Resolution: registry.ResolutionIgnored})
+				return
+			}
+			d := r.resolveHCL(call{
+				spec: spec, fr: fr, imports: imports, ref: ref, cands: cands, symbols: symbols,
+				typesNamed: typesNamed, facts: facts,
+			})
+			switch {
+			case d.verdict == verdictBound && d.best.confidence.AtLeast(r.opts.MinConfidence):
+				bind(ref, d.best)
+			case d.verdict == verdictExternal:
+				unresolved(ref, true)
+			case d.verdict == verdictUnresolved:
+				unresolved(ref, false)
+			default:
+				ambiguous(ref)
+			}
+			return
+		}
+
+		// A call whose shape the parser recorded is bound by that shape, in
+		// every language but the one static.go was written for. It runs
+		// before the "no candidates" exit below because a call qualified by a
+		// package that is not in the repository has no candidates, and is the
+		// one kind of unresolved reference that is known not to be a gap.
+		// A value a Python call initialised from another plain call (`svc =
+		// make_service()`) has the type that call's definition declares it
+		// returns. Read here because Python's calls are bound by static.go,
+		// which the shaped path below does not reach. See returned.go.
+		if edgeKind == model.EdgeCalls && spec.QualifiedMembers && ref.ReceiverKind == model.ReceiverValue && ref.ValueLine != 0 {
+			cl := call{
+				spec: spec, fr: fr, imports: imports, ref: ref, cands: cands, symbols: symbols,
+				produced: produced, typesNamed: typesNamed, facts: facts,
+			}
+			if d, ok := r.callReturned(cl, stats); ok && d.verdict == verdictBound && d.best.confidence.AtLeast(r.opts.MinConfidence) {
+				bind(ref, d.best)
+				return
+			}
+		}
+
+		if edgeKind == model.EdgeCalls && ref.ReceiverKind != "" && !spec.QualifiedMembers {
+			cl := call{
+				spec: spec, fr: fr, imports: imports, ref: ref, cands: cands, symbols: symbols,
+				produced: produced, typesNamed: typesNamed, facts: facts,
+			}
+			d := capConditionalTwins(cl, r.resolveCall(cl, stats))
+			switch {
+			case d.verdict == verdictBound && d.best.confidence.AtLeast(r.opts.MinConfidence):
+				bind(ref, d.best)
+			case d.verdict == verdictExternal:
+				unresolved(ref, true)
+			case d.verdict == verdictUnresolved:
+				unresolved(ref, false)
+			default:
+				ambiguous(ref)
+			}
+			return
+		}
+
+		// A receiver that is the local name of an import of something outside
+		// the repository: `_json.dumps()` after `import json as _json`. The
+		// call leaves the repository, whatever the repository also names
+		// `dumps`.
+		if spec.QualifiedMembers && edgeKind == model.EdgeCalls && r.qualifiedByOutsideModule(imports, ref) {
+			unresolved(ref, true)
+			return
+		}
+
+		// The second exclusion, of the same kind: candidates the language's
+		// SCOPING makes unreachable from this call. See reachable in static.go.
+		scope := ""
+		if spec.QualifiedMembers {
+			scope = enclosingScope(fr, ref.Line)
+			cands = reachableFrom(fr, ref, scope, cands)
+		}
+
+		if len(cands) == 0 && isTypeUse(ref.Kind) {
+			// A type this repository does not define: String, List, a
+			// framework's class. Recording it as unresolved would put every
+			// field of every library type among "matched no definition here"
+			// and the blind spots, as if a call had gone unbound; it is not
+			// a reference to repository code at all.
+			outcomes = append(outcomes, registry.RefOutcome{RefID: ref.ID, Resolution: registry.ResolutionIgnored})
+			return
+		}
+		if len(cands) == 0 {
+			// The name resolves to nothing indexed. Usually a standard-library
+			// or third-party call — real, but outside this repository. Recording
+			// it as unresolved keeps the gap visible instead of pretending the
+			// call site does not exist.
+			unresolved(ref, false)
+			return
+		}
+
+		// A receiver whose class the source STATES is asked about that class
+		// before any tier weighs the name: what the class declares is the
+		// answer, and nothing a tier could find outranks it.
+		sr, static := r.staticReceiverOf(spec, fr, imports, ref, scope, symbols)
+		if static && !sr.super {
+			if owned, ok := pickOwned(sr, cands); ok {
+				if owned.confidence.AtLeast(r.opts.MinConfidence) {
+					bind(ref, owned)
+				} else {
+					ambiguous(ref)
+				}
+				return
+			}
+		}
+		if static {
+			// The class is known and does not declare the method, so it is
+			// inherited or it is not this class's at all. Its ancestors can say
+			// which, but only once every file's inheritance has been bound — so
+			// the reference is parked, carrying what the name alone would have
+			// answered, and settled by ResolveDeferred.
+			fallback, has := r.fallbackByName(spec, fr, imports, ref, sr, cands, stats)
+			if r.deferStatic(spec, fr, ref, sr, fallback, has, stats) {
+				ambiguous(ref)
+				return
+			}
+			if has {
+				bind(ref, fallback)
+			} else {
+				ambiguous(ref)
+			}
+			return
+		}
+
+		best, ok := r.pickCapped(spec, fr, imports, ref, cands, stats)
+		if ok && edgeKind == model.EdgeCalls && ref.ReceiverKind == "" && !spec.QualifiedMembers {
+			// A call from an index that did not record what it was made on. An
+			// empty receiver there means nothing — a bare call, a chained one
+			// and a qualified one all look alike — so whatever the name tiers
+			// answer is the least this package can claim.
+			if best.confidence != model.ConfidenceLow {
+				best.confidence = model.ConfidenceLow
+				best.reason += "; this index does not record what the call was made on, re-index to bind it properly"
+			}
+			ok = best.confidence.AtLeast(r.opts.MinConfidence)
+		}
+		if !ok {
+			// A21 — nothing here could bind it. If it has a receiver, the
+			// ancestry chain may name the type that owns it; park it for the
+			// second pass. Bound references are never parked, so this cannot
+			// change an answer pass one already gave.
+			r.deferInherited(spec, fr, ref, stats)
+			ambiguous(ref)
+			return
+		}
+		bind(ref, best)
+	}
+
+	var guide *fileGuide
+	for _, ref := range fr.Refs {
+		stats.References++
+		snap, nOut, nDeferred := *stats, len(outcomes), len(r.deferred)
+		resolveRef(ref)
+
+		// A reference the rules refused, whose name is over the cap, is looked at
+		// again with the candidates the source points to. See guided.go. Only an
+		// AMBIGUOUS first pass is retried: nothing that bound, and nothing at or
+		// under the cap, takes any other path than it always did.
+		if r.guide == nil || len(symbols[ref.Name]) <= spec.MaxCandidates ||
+			len(outcomes) != nOut+1 || outcomes[nOut].Resolution != registry.ResolutionAmbiguous {
+			continue
+		}
+		if guide == nil {
+			g, err := r.newFileGuide(ctx, spec, fr, imports, symbols)
+			if err != nil {
+				return nil, nil, err
+			}
+			guide = g
+		}
+		ov, err := guide.overlay(ctx, ref, symbols)
+		if err != nil {
+			return nil, nil, err
+		}
+		if len(ov[ref.Name]) == 0 {
+			continue
+		}
+
+		// Set the first pass aside: its outcome, anything it parked for the
+		// inherited-dispatch pass, and its counters. The second look records
+		// the reference once, and if it does not bind it the first pass's
+		// record is put back exactly, so a reference guidance could not help is
+		// recorded, and parked, as it always was.
+		firstOutcome := outcomes[nOut]
+		firstParked := append([]deferredRef(nil), r.deferred[nDeferred:]...)
+		first := *stats
+		outcomes = outcomes[:nOut]
+		r.deferred = r.deferred[:nDeferred]
+		byConf := stats.ByConfidence
+		*stats = snap
+		stats.ByConfidence = byConf
+
+		saved := make(map[string][]registry.SymbolIndexEntry, len(ov))
+		for name, cs := range ov {
+			saved[name] = symbols[name]
+			symbols[name] = cs
+		}
+		r.retrying = true
+		resolveRef(ref)
+		r.retrying = false
+		for name, cs := range saved {
+			symbols[name] = cs
+		}
+
+		if len(outcomes) > nOut && outcomes[nOut].Resolution == registry.ResolutionResolved {
+			// CapExceeded counts the raw candidate set, whichever way the look
+			// went; CapGuided is the part guidance saved.
+			stats.CapExceeded = snap.CapExceeded + 1
+			stats.CapGuided++
+			stats.CapDropped = snap.CapDropped
+			continue
+		}
+		outcomes = append(outcomes[:nOut], firstOutcome)
+		r.deferred = append(r.deferred[:nDeferred], firstParked...)
+		byConf = stats.ByConfidence
+		*stats = first
+		stats.ByConfidence = byConf
+	}
+
+	return edges, outcomes, nil
+}
+
+// implementerSource is the symbol an `impl Trait for Type` edge starts at: the
+// type named Type, found in the impl's own file first, then as the single type
+// of that name the repository holds, or the single one in the same directory.
+// Two types of the name elsewhere leave the edge without a source, which is the
+// cheaper error: the trait reference is still recorded as resolved.
+func implementerSource(spec LanguageSpec, fr registry.FileRefs, name string, symbols map[string][]registry.SymbolIndexEntry) (int64, bool) {
+	for _, s := range fr.Symbols {
+		if s.Name == name {
+			return s.ID, true
+		}
+	}
+	var all, near []registry.SymbolIndexEntry
+	for _, c := range symbols[name] {
+		if !isTypeKind(c.Kind) || !spec.canBind(c, model.EdgeImplements) {
+			continue
+		}
+		all = append(all, c)
+		if path.Dir(c.FilePath) == path.Dir(fr.Path) {
+			near = append(near, c)
+		}
+	}
+	switch {
+	case len(all) == 1:
+		return all[0].ID, true
+	case len(near) == 1:
+		return near[0].ID, true
+	}
+	return 0, false
+}
+
+// languageOfFile is the language a file was indexed as, or failing that what
+// its extension says. The index always records one; a FileRefs built by hand
+// may not, and a file of no language at all could bind to nothing.
+func languageOfFile(fr registry.FileRefs) string {
+	if fr.Language != "" {
+		return fr.Language
+	}
+	return languageOfPath(fr.Path)
+}
+
+// AppendNames appends the names resolving a file will ask candidates for, in
+// first-appearance order, skipping any already in seen.
+//
+// Exported because the pipeline warms its candidate cache a page of files at a
+// time, and must ask for exactly what ResolveFile is about to ask for: a name
+// this returns that the warm-up missed costs a round trip per file, which is
+// the per-file query the page-sized warm-up exists to remove.
+//
+// The names are every reference's own name and, where the language's qualified
+// names state ownership, every receiver that is spelled as a class — it is
+// looked up to learn whether it IS one. That lookup is why this is per
+// language: in Go a receiver is `s` or `c`, and fetching candidates for those
+// would read rows nothing consults.
+func (r *Resolver) AppendNames(dst []string, seen map[string]struct{}, fr registry.FileRefs) []string {
+	if seen == nil {
+		seen = make(map[string]struct{}, len(fr.Refs))
+	}
+	if dst == nil {
+		dst = make([]string, 0, len(fr.Refs))
+	}
+	add := func(name string) {
+		if name == "" {
+			return
+		}
+		if _, dup := seen[name]; dup {
+			return
+		}
+		seen[name] = struct{}{}
+		dst = append(dst, name)
+	}
+	spec := r.specs.For(languageOfFile(fr))
+	if spec.Calls.ObjectsAreCallable && len(fr.Refs) > 0 {
+		// An object is called through its apply (object.go).
+		add("apply")
+	}
+	for _, ref := range fr.Refs {
+		add(ref.Name)
+		if ref.ReceiverKind == model.ReceiverImplementer {
+			add(ref.Receiver)
+			continue
+		}
+		if spec.QualifiedMembers {
+			if spelledAsClass(ref.Receiver) {
+				add(ref.Receiver)
+			}
+			continue
+		}
+		// A receiver that may name a type is looked up to learn whether it
+		// does. A value and an expression name nothing, and `self` names the
+		// enclosing type, which is in this file.
+		switch ref.ReceiverKind {
+		case model.ReceiverName, model.ReceiverType, model.ReceiverScope, model.ReceiverPath:
+			add(lastSegment(ref.Receiver))
+		}
+	}
+	// A class imported under another name (`import a.b.C as D`) is the type a
+	// call qualified by D is made on, and no reference spells C.
+	if spec.Calls.ImportAliases {
+		for _, imp := range fr.Imports {
+			if imp.Alias != "" {
+				add(lastRawSegment(imp.Path))
+			}
+		}
+	}
+	// A use of a renamed import is bound to the definition of the name the
+	// module exports it by (renamed.go), which no reference spells.
+	for _, imp := range fr.Imports {
+		if local, exported, ok := renamedAlias(imp.Alias); ok {
+			for _, ref := range fr.Refs {
+				if ref.Name == local {
+					add(exported)
+					break
+				}
+			}
+		}
+	}
+	return dst
+}
+
+// pickCapped is pick behind the candidate cap: the answer the tiers give for
+// one reference, or false when they give none.
+func (r *Resolver) pickCapped(
+	spec LanguageSpec,
+	fr registry.FileRefs,
+	imports importSet,
+	ref registry.Reference,
+	cands []registry.SymbolIndexEntry,
+	stats *Stats,
+) (candidate, bool) {
+	if len(cands) > spec.MaxCandidates {
+		// Too many to weigh — UNLESS same-file, import, receiver, or service boundary narrows it.
+		//
+		// Lexical scoping means a definition in the calling file shadows identical
+		// names from across the repository. Likewise, an explicit import, receiver,
+		// or service boundary constraints the candidates directly.
+		stats.CapExceeded++
+		var narrowed []registry.SymbolIndexEntry
+		// Same-file rescue is valid for bare calls or instance self-calls, but MUST NOT
+		// bind method calls on external receivers (e.g. user.save()) to a module-level function.
+		if ref.Receiver == "" || spec.isSelfName(ref.Receiver) {
+			for _, c := range cands {
+				if c.FileID == fr.FileID {
+					narrowed = append(narrowed, c)
+				}
+			}
+		}
+		if len(narrowed) == 0 || len(narrowed) > spec.MaxCandidates {
+			if spec.QualifiedMembers && ref.Receiver == "" {
+				if group, _ := resolveMember(spec, imports, ref.Name, cands); len(group) > 0 && len(group) <= spec.MaxCandidates {
+					narrowed = group
+				}
+			}
+		}
+		if len(narrowed) == 0 || len(narrowed) > spec.MaxCandidates {
+			if isPythonTest(fr.Path) && ref.Receiver == "" {
+				if nearest, ok := resolveConftest(fr.Path, cands); ok {
+					narrowed = []registry.SymbolIndexEntry{nearest}
+				}
+			}
+		}
+		if len(narrowed) == 0 || len(narrowed) > spec.MaxCandidates {
+			narrowed = narrowByReceiver(spec, ref, cands)
+		}
+		if len(narrowed) == 0 || len(narrowed) > spec.MaxCandidates {
+			if proj := r.subprojectOf(fr.Path); proj != "" {
+				var sameProj []registry.SymbolIndexEntry
+				for _, c := range cands {
+					if r.subprojectOf(c.FilePath) == proj {
+						sameProj = append(sameProj, c)
+					}
+				}
+				if len(sameProj) > 0 && len(sameProj) <= spec.MaxCandidates {
+					narrowed = sameProj
+				}
+			}
+		}
+		if len(narrowed) == 0 || len(narrowed) > spec.MaxCandidates {
+			stats.CapDropped++
+			return candidate{}, false
+		}
+		cands = narrowed
+	}
+
+	best, ok := r.pick(spec, fr, imports, ref, cands)
+	if !ok || !best.confidence.AtLeast(r.opts.MinConfidence) {
+		return candidate{}, false
+	}
+	return best, true
+}
+
+// subprojectOf returns the subproject root for a file path, consulting the
+// repository Layout first and falling back to static path patterns.
+func (r *Resolver) subprojectOf(p string) string {
+	if r != nil && r.layout != nil {
+		if proj := r.layout.ProjectOf(p); proj != "" {
+			return proj
+		}
+	}
+	return subprojectOf(p)
+}
+
+// fallbackByName is what the name alone answers for a call whose receiver's
+// class is KNOWN and does not declare the method.
+//
+// None of the receiver tiers apply — the receiver is a class, not a module —
+// so this is pickByName behind the candidate cap, reported as the name-only
+// binding it is. A call on `super()` gets no fallback at all: the only
+// definition of the name in the file is, more often than not, the very method
+// the call is written in. While this was being built that fallback existed,
+// and measured against a compiler index on django it was right 0 times in 54.
+func (r *Resolver) fallbackByName(
+	spec LanguageSpec,
+	fr registry.FileRefs,
+	imports importSet,
+	ref registry.Reference,
+	sr staticReceiver,
+	cands []registry.SymbolIndexEntry,
+	stats *Stats,
+) (candidate, bool) {
+	if sr.super {
+		return candidate{}, false
+	}
+	if len(cands) > spec.MaxCandidates {
+		stats.CapExceeded++
+		stats.CapDropped++
+		return candidate{}, false
+	}
+	c, ok := r.pickByName(spec, fr, imports, ref, cands)
+	if !ok {
+		return candidate{}, false
+	}
+	c = nameOnly(c, sr.class+" does not declare it and its ancestors did not settle it")
+	if !c.confidence.AtLeast(r.opts.MinConfidence) {
+		return candidate{}, false
+	}
+	return c, true
+}
+
+// pick chooses the best candidate and the confidence that choice earns.
+//
+// The ordering of these rules IS the confidence model. Each tier exists because
+// it rules out a specific way of being wrong.
+func (r *Resolver) pick(
+	spec LanguageSpec,
+	fr registry.FileRefs,
+	imports importSet,
+	ref registry.Reference,
+	cands []registry.SymbolIndexEntry,
+) (candidate, bool) {
+	// Where qualified names state ownership, the evidence available is of a
+	// different kind and so is the order it is consulted in. See static.go.
+	if spec.QualifiedMembers {
+		return r.pickQualified(spec, fr, imports, ref, cands)
+	}
+
+	// Tier 1 — same file. Nothing beats a definition in the very file that
+	// references it: no import resolution, no visibility question, no shadowing
+	// from another package.
+	var sameFile []registry.SymbolIndexEntry
+	for _, c := range cands {
+		if c.FileID == fr.FileID {
+			sameFile = append(sameFile, c)
+		}
+	}
+	if len(sameFile) == 1 {
+		return candidate{sameFile[0], model.ConfidenceHigh, "defined in the same file"}, true
+	}
+
+	// Tier 2 — receiver type matches the symbol's owner. `svc.updateStatus()`
+	// where a candidate is OWNED by a type the receiver plausibly names is far
+	// stronger evidence than a bare name match, because it constrains both the
+	// name AND the type.
+	//
+	// Failing to confirm an owner is NOT evidence against a candidate — see
+	// receiverMatches — so an unconfirmed receiver falls through to the tiers
+	// below rather than excluding anything.
+	if ref.Receiver != "" {
+		// A5 — before treating the receiver as a TYPE, check whether it is the
+		// local name of an import. `pay.Process()` where the file wrote
+		// `import pay "github.com/sutrakam/graphlume/internal/payments"` is not type inference at
+		// all: the file DECLARED where that name comes from, which is the
+		// strongest evidence available short of a compiler. The alias was
+		// parsed, stored and then discarded here.
+		//
+		// Inside tier 2 rather than above it, so the tier order the rest of
+		// this function documents is untouched.
+		if c, ok := r.pickAliased(imports, ref, cands); ok {
+			return c, true
+		}
+
+		var byReceiver []registry.SymbolIndexEntry
+		for _, c := range cands {
+			if receiverMatches(spec, ref.Receiver, c) {
+				byReceiver = append(byReceiver, c)
+			}
+		}
+		if len(byReceiver) == 1 {
+			return candidate{byReceiver[0], model.ConfidenceHigh, "receiver type matches"}, true
+		}
+		if len(byReceiver) > 1 {
+			// The receiver narrowed it but did not settle it — typically an
+			// overload set. Prefer deterministically so repeated runs agree,
+			// and be honest that it was a preference, not a deduction.
+			sortCandidates(byReceiver)
+			if c, ok := preferByArity(ref, byReceiver); ok {
+				return candidate{c, model.ConfidenceMedium,
+					"receiver matches, overloaded; argument count selects one"}, true
+			}
+			return candidate{byReceiver[0], model.ConfidenceMedium, "receiver matches, overloaded"}, true
+		}
+	}
+
+	// Tiers 3 and 4 — an explicit import, and the same directory.
+	//
+	// Their ORDER is language-dependent, and getting it wrong is the single
+	// largest source of wrong high-confidence edges. Both orders were measured
+	// against compiler ground truth:
+	//
+	//   - Where a directory IS the package (Go, Java, Kotlin), an unqualified
+	//     name resolves IN the package. `Foo()` means this package's Foo; the
+	//     imported one would have to be written `pkg.Foo()`. Same directory
+	//     must win. Putting imports first cost prometheus 0.8 points of
+	//     high-confidence precision.
+	//
+	//   - Where each file is its own module (Python, TypeScript, JavaScript),
+	//     adjacency means nothing and the import is a DECLARATION that this
+	//     file depends on that module. Imports must win. Putting proximity
+	//     first cost scrapy 4.7 points: `tests/test_addons.py` imports
+	//     `get_crawler` from `scrapy.utils.test`, defines nothing of that name,
+	//     and was bound to an unrelated helper in a neighbouring test file —
+	//     144 edges from that one name, and roughly 45% of every
+	//     high-confidence disagreement in the repository.
+	//
+	// Inferred evidence must not outrank a declaration, except where the
+	// language makes proximity a declaration in itself.
+	if r.retrying {
+		if c, ok := r.pickNamedImport(fr, imports, ref, cands); ok {
+			return c, true
+		}
+	}
+	// A type use whose class this file imports by name is that class, ahead
+	// of either order above: the import names the class itself.
+	if c, ok := r.pickTypeByClassImport(imports, ref, cands); ok {
+		return c, true
+	}
+	if spec.PackageIsDirectory {
+		if c, ok := r.pickSameDir(spec, fr, cands); ok {
+			return c, true
+		}
+		if c, ok := r.pickImported(imports, ref, cands); ok {
+			return c, true
+		}
+	} else {
+		if c, ok := r.pickImported(imports, ref, cands); ok {
+			return c, true
+		}
+		if c, ok := r.pickSameDir(spec, fr, cands); ok {
+			if spec.Name == "cpp" && edgeKindFor(ref.Kind) == model.EdgeExtends {
+				// A C++ base class found only because a file beside this one
+				// has a type of that name. Measured on leveldb after the
+				// macro-exported classes became symbols: 5 of 15 right, below
+				// the 60% floor medium keeps. The same edges one tier down were
+				// 24 of 24.
+				c.confidence = model.ConfidenceLow
+				c.reason += "; C++ base class by name only"
+			}
+			return c, true
+		}
+	}
+
+	// Tier 5 — a unique name anywhere in the repository. Weak, but a name that
+	// occurs exactly once is meaningfully different from one that occurs eight
+	// times, and callers can threshold on it.
+	if len(cands) == 1 {
+		if spec.Calls.TypesAreGlobal && isTypeKind(cands[0].Kind) {
+			// A class of a language with no imports is visible by its name, and
+			// the one the repository declares is the one meant (TypesAreGlobal).
+			return candidate{cands[0], model.ConfidenceHigh, "a type global by name, the only one of that name"}, true
+		}
+		if !cands[0].Exported {
+			// An unexported symbol in another file is probably not the target;
+			// the reference more likely points outside the repository.
+			return candidate{}, false
+		}
+		// A20 — uniqueness is only evidence for a name that could plausibly be
+		// unique. A repository containing exactly one `get` says nothing about
+		// what a given `get(...)` meant, because the competing definitions are
+		// in dependencies that were never indexed: the uniqueness is a property
+		// of the index's boundary, not of the program. See genericNames.
+		//
+		// Refusing HERE and nowhere else is what keeps this outside the class
+		// of change A19 belongs to. Every stronger tier has already declined,
+		// so no candidate set is being shrunk and no other reference's
+		// disambiguation can move.
+		if r.specs.IsGenericName(ref.Name) {
+			return candidate{}, false
+		}
+		return candidate{cands[0], model.ConfidenceLow, "unique name in repository, no import evidence"}, true
+	}
+
+	// Several candidates and nothing to choose between them. Guessing here is
+	// exactly the behaviour this package exists to avoid.
+	return candidate{}, false
+}
+
+// preferByArity picks the one candidate whose parameter count matches the call
+// site's argument count.
+//
+// # A4 — this is a RANKING rule, and the distinction is the whole design
+//
+// When several candidates share a name, how many arguments the call passes is
+// evidence about which one was meant. `Save(id)` and `Save(ctx, id, opts)` are
+// different functions and a call site names one of them.
+//
+// What this must never become is a filter. Two guards that removed candidates
+// were measured and rejected — see "Why candidates are not filtered before the
+// tiers" above — and A19 recorded the mechanism precisely: shrinking a
+// candidate set does not merely delete wrong candidates, it tips references
+// across the disambiguation thresholds, so references that were honestly
+// AMBIGUOUS start resolving, mostly wrongly. An arity rule written as "drop the
+// candidates whose parameter count differs" would be that same change with a
+// new justification.
+//
+// So this is called from exactly three places, and every one of them is a point
+// where pick() has ALREADY decided which candidate wins and is about to report
+// ConfidenceMedium with the reason "several matched, preferred
+// deterministically". All this does is change WHICH of those several is
+// preferred. It cannot:
+//
+//   - remove a candidate, so no reference's ambiguity is disturbed;
+//   - resolve a reference that would otherwise have been ambiguous;
+//   - reach a ConfidenceHigh branch, all of which return before this runs.
+//
+// That last property is what makes the change safe to attempt at all. `high` is
+// the tier the product tells a consumer to act on and it measures 97.8% on this
+// repository; A3 was rejected for moving it by 0.3pp. A rule confined to the
+// medium branches cannot move `high` by construction, not merely by measurement
+// — the edges it reorders were already going to be emitted, at the same tier,
+// pointing at some member of the same set.
+//
+// # Why unknown is not a mismatch
+//
+// A candidate or a call site with no determined arity is skipped, never
+// counted against. model.Arity exists so "the parser did not work out a count"
+// and "the count is zero" are different values, because the languages where
+// they would be confused are exactly the languages where an arity mismatch is a
+// parser artefact rather than evidence: a Python method's implicit `self`, a
+// TypeScript optional parameter, a default argument, a variadic signature.
+// internal/parse reports ArityUnknown for all of those, so they never reach
+// here — and a language whose parser has no arity query at all sees this
+// function do nothing, which is why nothing gates it on the language.
+//
+// # Why EXACTLY one
+//
+// A preference is only worth expressing when it points somewhere. Two
+// candidates of the same arity are as ambiguous as they were, and zero matches
+// means the call disagrees with every candidate — which is far more likely to
+// mean the parser miscounted, or the real target is not indexed, than that one
+// of these is right. Both cases fall back to the existing deterministic order
+// rather than inventing a tie-break.
+//
+// # Measured
+//
+// On GraphLume's own source, 431 Go files, adjudicated against an 18 MB scip-go
+// 0.2.7 index. One FROZEN tree and one index in both arms, only the binary
+// differing:
+//
+//	tier     baseline                      with A4
+//	high     97.8%  5,747 judged  129 wrong  97.8%  5,747 judged  129 wrong
+//	medium   35.4%     48 judged   31 wrong  45.8%     48 judged   26 wrong
+//	low       0.3%    309 judged  308 wrong   0.3%    309 judged  308 wrong
+//	all      92.3%  6,104 judged  468 wrong  92.4%  6,104 judged  463 wrong
+//
+// `high` is identical in all three numbers, not merely close — which is what
+// the design predicts, since no ConfidenceHigh branch reaches this function.
+// Recall is unchanged at every tier (`high` 60.3%, all 60.5%), as are the miss
+// counts (2,891 unresolved, 407 ambiguous): the same call sites resolved, at
+// the same tiers, and five of them changed which definition they name. All five
+// changed from wrong to right.
+//
+// The honest caveat is the sample. `medium` is 48 judged edges out of 13,394
+// heuristic ones on this corpus, so 10.4pp is five edges. What justifies
+// shipping is not the size of that number but the shape of the change: it
+// cannot subtract, and every edge it moved it moved in the right direction.
+func preferByArity(ref registry.Reference, cands []registry.SymbolIndexEntry) (registry.SymbolIndexEntry, bool) {
+	if !ref.ArgCount.Known() {
+		return registry.SymbolIndexEntry{}, false
+	}
+	var match registry.SymbolIndexEntry
+	found := 0
+	for _, c := range cands {
+		if !c.ParamCount.Known() || c.ParamCount.Count() != ref.ArgCount.Count() {
+			continue
+		}
+		found++
+		if found > 1 {
+			return registry.SymbolIndexEntry{}, false
+		}
+		match = c
+	}
+	return match, found == 1
+}
+
+// importSet answers "does this file live in something the referencing file
+// imported". It carries the referencing file's language because what an import
+// path NAMES differs by language — a directory in Go and Java, usually a file
+// in Python, TypeScript and JavaScript.
+type importSet struct {
+	// spec is the REFERENCING file's language strategy. What an import path
+	// names differs by language — a directory in Go and Java, usually a file in
+	// Python, TypeScript and JavaScript — and matching the wrong one either
+	// misses real imports or invents coincidences. The field that decides it is
+	// LanguageSpec.ImportPathNamesFile.
+	spec LanguageSpec
+
+	// imports is every declared import, in the order the file wrote them, with
+	// its path pre-split into lowercased segments. A SLICE, scanned in order,
+	// because resolution must not depend on map iteration.
+	imports []importEntry
+
+	// byLocalName indexes the imports that declared an explicit local name, for
+	// lookup only — never iterated.
+	byLocalName map[string]int
+
+	// members maps a name imported FROM a module — `Account` in
+	// `from shop.models import Account` — to the imports that brought it in, as
+	// indexes into imports. Keyed by the name exactly as written: it is an
+	// identifier, and identifiers that differ in case are different names.
+	// Looked up, never iterated.
+	members map[string][]int
+
+	// renamed maps the local name of a member imported under another name —
+	// `CalendarPrimitive` in `import { Calendar as CalendarPrimitive } from
+	// './cal'` — to the name the module exports it by and the import it came
+	// in by. A name is here only when the file renamed it. See viaRenamedImport.
+	renamed map[string]renamedImport
+
+	// layout is the run's directory index, where there is one. An absolute
+	// import cannot name a module from inside a package directory, and only
+	// the layout knows which directories are packages.
+	layout *Layout
+
+	// base is the referencing file's directory as segments, which is what a
+	// relative import is relative TO. Set by ResolveFile; empty in a set built
+	// without a file, where a relative import then anchors at the root.
+	base []string
+
+	// reached is the files the direct imports reach in turn, by path without
+	// extension, with how many steps away each is (1 or more). Only for a
+	// language with LanguageSpec.TransitiveImports. See transitive.go.
+	reached map[string]int
+}
+
+// renameSeparator joins the local name and the exported name in a member
+// import's alias: ".local=exported". internal/parse writes it.
+const renameSeparator = "="
+
+// renamedImport is what a renamed member import says about its local name.
+type renamedImport struct {
+	exported string // the name the module exports it by
+	entry    int    // index into importSet.imports of the import that brought it
+}
+
+// memberAliasPrefix marks an import row whose alias names a member imported
+// from the path rather than a local name for the path. internal/parse writes
+// it; see memberAliasPrefix there.
+const memberAliasPrefix = "."
+
+// opaqueReceiver is the receiver internal/parse records for a call on an
+// expression it cannot name. See parse.OpaqueReceiver.
+const opaqueReceiver = "?"
+
+// importEntry is one declared import, prepared for matching.
+type importEntry struct {
+	alias string
+	// segments is the path split on both '/' and '.', lowercased. Import paths
+	// and file paths are written in different alphabets — "com.pay.repository"
+	// vs "src/main/java/com/pay/repository/X.java", "github.com/pay/repo" vs
+	// "repo/x.go" — and splitting both into segments is what makes them
+	// comparable at all.
+	segments []string
+
+	// raw is the path exactly as the file wrote it. The rules that trace a
+	// qualifier to a package need it whole: a Go import's directory, an
+	// ECMAScript specifier's `./`, the class a Java import names in its own
+	// case.
+	raw string
+
+	// relative is how many leading dots the path was written with: 0 for an
+	// absolute import, 1 for `from .mod`, 2 for `from ..mod`. The unanchored
+	// import tier ignores it, as it always did; the rules that know the
+	// referencing file use it to anchor the path. See importSet.locate.
+	relative int
+}
+
+// leadingDots counts the dots a relative import path begins with. A path that
+// continues with a slash is a JavaScript-style `./x`, which is not this.
+func leadingDots(p string) int {
+	n := 0
+	for n < len(p) && p[n] == '.' {
+		n++
+	}
+	if n < len(p) && p[n] == '/' {
+		return 0
+	}
+	return n
+}
+
+func buildImportSet(spec LanguageSpec, imports []registry.Import) importSet {
+	s := importSet{
+		spec:    spec,
+		imports: make([]importEntry, 0, len(imports)),
+	}
+	// byPath finds the entry a member row belongs to. Member rows repeat their
+	// module's path once per imported name, and adding each as an entry of its
+	// own would make every covers() scan as long as the file's import LIST
+	// rather than its set of modules.
+	var byPath map[string]int
+	for _, imp := range imports {
+		member, isMember := strings.CutPrefix(imp.Alias, memberAliasPrefix)
+		exported := ""
+		if isMember {
+			// ".local=exported": the member was imported under another name.
+			member, exported, _ = strings.Cut(member, renameSeparator)
+		}
+		p := strings.Trim(imp.Path, "./")
+		if isMember {
+			// A member of a bare relative import — `from . import sibling` — has
+			// no path segments at all: the module is the package itself.
+			if member == "" || (p == "" && leadingDots(imp.Path) == 0) {
+				continue
+			}
+			i, known := byPath[imp.Path]
+			if !known {
+				if byPath == nil {
+					byPath = make(map[string]int, len(imports))
+				}
+				i = len(s.imports)
+				byPath[imp.Path] = i
+				s.imports = append(s.imports, importEntry{
+					segments: importSegments(spec, p), relative: leadingDots(imp.Path), raw: imp.Path})
+			}
+			if s.members == nil {
+				s.members = make(map[string][]int, len(imports))
+			}
+			s.members[member] = append(s.members[member], i)
+			if exported != "" && exported != member {
+				if s.renamed == nil {
+					s.renamed = map[string]renamedImport{}
+				}
+				if _, dup := s.renamed[member]; !dup {
+					s.renamed[member] = renamedImport{exported: exported, entry: i}
+				}
+			}
+			continue
+		}
+		if p == "" {
+			continue
+		}
+		e := importEntry{alias: imp.Alias, segments: importSegments(spec, p), relative: leadingDots(imp.Path), raw: imp.Path}
+		if len(e.segments) == 0 {
+			continue
+		}
+		if e.alias == "" {
+			if _, dup := byPath[imp.Path]; dup {
+				continue
+			}
+			if byPath == nil {
+				byPath = make(map[string]int, len(imports))
+			}
+			byPath[imp.Path] = len(s.imports)
+		}
+		if e.alias != "" {
+			if s.byLocalName == nil {
+				s.byLocalName = make(map[string]int, len(imports))
+			}
+			// First declaration wins on a repeated local name; a file that
+			// binds one name twice is malformed, and picking deterministically
+			// beats picking by scan order downstream.
+			if _, dup := s.byLocalName[strings.ToLower(e.alias)]; !dup {
+				s.byLocalName[strings.ToLower(e.alias)] = len(s.imports)
+			}
+		}
+		s.imports = append(s.imports, e)
+	}
+	return s
+}
+
+// pathSegments splits an import or file path on both separators that appear in
+// one, lowercased, dropping empties.
+func pathSegments(p string) []string {
+	out := make([]string, 0, 4)
+	for _, part := range strings.FieldsFunc(p, func(r rune) bool {
+		return r == '/' || r == '.'
+	}) {
+		if part == "" || part == "." {
+			continue
+		}
+		out = append(out, strings.ToLower(part))
+	}
+	return out
+}
+
+// fileSegments renders a candidate's path as the segments an import could name.
+//
+// In JavaScript, TypeScript and Python a module usually IS a file:
+// `import { X } from './sibling'` resolves to sibling.ts, and
+// `from .helpers import X` to helpers.py, so the file's own stem is the last
+// segment. In Go and Java an import path's last segment is a DIRECTORY and a
+// file's own name means nothing to it — matching on it there only invents
+// coincidences, and measured, enabling it for Go cost prometheus 0.4 points.
+//
+// Which of the two applies is LanguageSpec.ImportPathNamesFile.
+func fileSegments(spec LanguageSpec, filePath string) []string {
+	dir := pathSegments(spec.moduleDirOf(filePath))
+	if !spec.ImportPathNamesFile {
+		return dir
+	}
+	base := fileBaseName(filePath)
+	if base == "" || (spec.PackageInitStem != "" && base == spec.PackageInitStem) {
+		// `shop/models/__init__.py` is the module `shop.models`: the directory
+		// names it and the stem names nothing. See LanguageSpec.PackageInitStem.
+		return dir
+	}
+	return append(dir, strings.ToLower(base))
+}
+
+// moduleStem is the name a module-qualified call writes for a file: the file's
+// own stem, or its directory's where the file is a package's init module.
+func moduleStem(spec LanguageSpec, filePath string) string {
+	base := fileBaseName(filePath)
+	if spec.PackageInitStem != "" && base == spec.PackageInitStem {
+		return path.Base(path.Dir(filePath))
+	}
+	return base
+}
+
+// covers reports how well a file matches something the referencing file
+// imported, as the number of TRAILING segments the two share.
+//
+// # A6 — why this is anchored at the end
+//
+// A bag-of-words rule would be: any lowercased segment of the file's path equal to any
+// segment of any import path. That is not a containment test on packages, it is
+// a bag-of-words match, and `internal` or `src` or `com` is a segment of nearly
+// every import in a repository. `internal/config/x.go` would therefore "live in" an
+// import of `graphlume/internal/anything`, and because pickImported reports
+// ConfidenceHigh whenever the match is UNIQUE, one such coincidence is enough
+// to publish a high-confidence edge to a file the reference never imported.
+//
+// Matching TRAILING segments instead is what an import path actually asserts.
+// `graphlume/internal/config` names the package whose directory ENDS with
+// internal/config; it says nothing about a file that merely happens to sit
+// under some other `internal`. Anchoring costs nothing real, because the
+// alphabets still differ in their prefixes — an import of `com.pay.repository`
+// still matches `src/main/java/com/pay/repository/X.java` on three segments.
+//
+// The DEPTH is returned rather than a bool so the caller can prefer the longest
+// suffix. Two imports can both cover a candidate, and the one that shares more
+// of the path is the one that named it.
+func (s importSet) covers(filePath string) (int, bool) {
+	_, d, ok := s.coverage(filePath)
+	return d, ok
+}
+
+// coverage is covers with how near the file is: 0 for one a direct import
+// names, n for one n steps down the chain of imports (transitive.go). The nearest
+// wins; d is the number of trailing segments shared with the import that names
+// the file.
+func (s importSet) coverage(filePath string) (depth, d int, ok bool) {
+	if d, ok := s.directCovers(filePath); ok {
+		return 0, d, true
+	}
+	if len(s.reached) > 0 {
+		key := strings.TrimSuffix(filePath, path.Ext(filePath))
+		if n, ok := s.reached[key]; ok {
+			return n, len(pathSegments(key)), true
+		}
+	}
+	return 0, 0, false
+}
+
+// nearest keeps, of the candidates the imports cover, those the nearest import
+// names and, among them, the ones sharing the most trailing segments with it.
+func (s importSet) nearest(cands []registry.SymbolIndexEntry) []registry.SymbolIndexEntry {
+	bestDepth, best := 0, 0
+	for _, c := range cands {
+		depth, d, ok := s.coverage(c.FilePath)
+		if !ok {
+			continue
+		}
+		if best == 0 || depth < bestDepth || (depth == bestDepth && d > best) {
+			bestDepth, best = depth, d
+		}
+	}
+	if best == 0 {
+		return nil
+	}
+	var out []registry.SymbolIndexEntry
+	for _, c := range cands {
+		if depth, d, ok := s.coverage(c.FilePath); ok && depth == bestDepth && d == best {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// directCovers is the match of the imports a file wrote itself.
+func (s importSet) directCovers(filePath string) (int, bool) {
+	if len(s.imports) == 0 {
+		return 0, false
+	}
+	segs := fileSegments(s.spec, filePath)
+	if len(segs) == 0 {
+		return 0, false
+	}
+	best := 0
+	for i := range s.imports {
+		if s.spec.Name == "dart" && s.imports[i].alias != "" {
+			// `import 'a.dart' as a;` brings a.dart's names in through `a.`
+			// and in no other way: an unprefixed name is not one of them.
+			continue
+		}
+		if d := commonSuffixLen(s.imports[i].segments, segs); d > best {
+			best = d
+		}
+	}
+	return best, best > 0
+}
+
+// coversFrom is covers restricted to ONE declared import, for the case where
+// the reference named that import outright.
+func (s importSet) coversFrom(e importEntry, filePath string) bool {
+	segs := fileSegments(s.spec, filePath)
+	return len(segs) > 0 && commonSuffixLen(e.segments, segs) > 0
+}
+
+// insidePackage reports whether a file that an ABSOLUTE import's path matches
+// from the right sits inside a package directory, which means the import does
+// not name it. `import json` is the top-level `json`: it cannot be
+// `flask/json/__init__.py`, because `flask` is itself a package and its
+// submodule is spelled `flask.json`. Measured on flask, where `_json.dumps`
+// after `import json as _json` bound to flask's own `dumps` — the function the
+// call is written in.
+//
+// False wherever it cannot tell: no layout, a relative import, a language
+// with no package marker.
+func (s importSet) insidePackage(e importEntry, filePath string) bool {
+	if !s.layout.Known() || e.relative > 0 || s.spec.PackageInitStem == "" {
+		return false
+	}
+	segs := fileSegments(s.spec, filePath)
+	n := commonSuffixLen(e.segments, segs)
+	if n == 0 || n > len(segs) {
+		return false
+	}
+	return s.layout.IsPackageDir(segs[:len(segs)-n])
+}
+
+// commonSuffixLen counts the trailing segments two paths agree on.
+func commonSuffixLen(a, b []string) int {
+	n := 0
+	for n < len(a) && n < len(b) {
+		if a[len(a)-1-n] != b[len(b)-1-n] {
+			break
+		}
+		n++
+	}
+	return n
+}
+
+// pickAliased resolves a reference whose receiver is an import's local name.
+//
+// A5 — registry.Import.Alias is populated by the parser (see the @alias
+// captures in internal/parse/queries.go, which fire only where the syntax
+// declares a local name: Go's `import pay "..."`, Python's `import x as y`) and
+// was read by nothing. It is the one piece of evidence in this package that is
+// DECLARED rather than inferred at the level of an individual reference: the
+// file states that this name denotes that package, so a reference qualified by
+// it is package-qualified and the candidate set collapses to whatever lives
+// there.
+//
+// Restricted to EXPLICIT aliases. An unaliased import also binds a local name
+// in Go — `registry.New()` after `import "github.com/sutrakam/graphlume/internal/registry"` — but
+// that name is the package clause, not the last path segment, and the two
+// differ often enough (package `pay` in directory `payments`) that inferring it
+// would be a guess wearing a declaration's confidence. Reading it properly
+// needs the package name in the symbol index; until then this handles the case
+// the parser can actually prove.
+//
+// A receiver that names an import but matches no candidate falls through
+// rather than excluding anything. The overwhelmingly common reason is that the
+// import is third-party and simply is not in the index, which is absence of
+// evidence — the distinction A18 got wrong.
+func (r *Resolver) pickAliased(
+	imports importSet,
+	ref registry.Reference,
+	cands []registry.SymbolIndexEntry,
+) (candidate, bool) {
+	if len(imports.byLocalName) == 0 {
+		return candidate{}, false
+	}
+	i, ok := imports.byLocalName[strings.ToLower(strings.TrimPrefix(ref.Receiver, "*"))]
+	if !ok {
+		return candidate{}, false
+	}
+	entry := imports.imports[i]
+
+	var inPackage []registry.SymbolIndexEntry
+	for _, c := range cands {
+		if imports.coversFrom(entry, c.FilePath) && !imports.insidePackage(entry, c.FilePath) {
+			inPackage = append(inPackage, c)
+		}
+	}
+	switch len(inPackage) {
+	case 0:
+		return candidate{}, false
+	case 1:
+		return candidate{inPackage[0], model.ConfidenceHigh,
+			"receiver is the local name of an import declaring this package"}, true
+	default:
+		// The package is right and the member is overloaded within it. Prefer
+		// deterministically and say it was a preference.
+		sortCandidates(inPackage)
+		if c, ok := preferByArity(ref, inPackage); ok {
+			return candidate{c, model.ConfidenceMedium,
+				"receiver is an import's local name; argument count selects one in that package"}, true
+		}
+		return candidate{inPackage[0], model.ConfidenceMedium,
+			"receiver is an import's local name, several matches in that package"}, true
+	}
+}
+
+// pickImported chooses among candidates the file explicitly imports.
+//
+// An import is DECLARED evidence: the file said it depends on that module.
+//
+// Where several candidates are covered, the one matching the LONGEST run of
+// trailing segments wins: an import of `graphlume/internal/pay/store` covers
+// both `internal/pay/store/x.go` (three segments) and, in a repository that
+// also imports `.../store`, `internal/store/x.go` (one), and the deeper match
+// is the one that import path actually named. Only a tie among equally deep
+// matches is the honest "several, preferred deterministically" case.
+func (r *Resolver) pickImported(
+	imports importSet,
+	ref registry.Reference,
+	cands []registry.SymbolIndexEntry,
+) (candidate, bool) {
+	if r.retrying {
+		// The second look (guided.go) trusts what the source STATES: an import
+		// that names the definition (pickNamedImport). "Some module this file
+		// imports defines one" is evidence about a module and not about the name,
+		// and on the guided set it bound `implements vscode.Disposable` to a
+		// vendored Disposable because the file imported DisposableStore from the
+		// same module.
+		return candidate{}, false
+	}
+	imported := imports.nearest(cands)
+	if len(imported) == 0 {
+		return candidate{}, false
+	}
+	if len(imported) == 1 {
+		return candidate{imported[0], model.ConfidenceHigh, "single match in an imported package"}, true
+	}
+	sortCandidates(imported)
+	if c, ok := preferByArity(ref, imported); ok {
+		return candidate{c, model.ConfidenceMedium,
+			"multiple matches among imports; argument count selects one"}, true
+	}
+	return candidate{imported[0], model.ConfidenceMedium, "multiple matches among imports"}, true
+}
+
+// pickSameDir chooses among candidates beside the referencing file.
+//
+// Confidence depends on whether the language makes that visibility real: in Go
+// and Java the directory is the package, so a neighbour is in scope. Elsewhere
+// a name that occurs exactly once next door is still better evidence than one
+// occurring nowhere, but it is a preference and is labelled as one.
+func (r *Resolver) pickSameDir(
+	spec LanguageSpec,
+	fr registry.FileRefs,
+	cands []registry.SymbolIndexEntry,
+) (candidate, bool) {
+	if !spec.PackageIsDirectory && !spec.ProximityIsEvidence {
+		// Measured to be noise for this language; see the field.
+		return candidate{}, false
+	}
+	if r.retrying && !spec.PackageIsDirectory {
+		// Where a neighbour is not in scope without an import, sharing a
+		// directory says nothing about a name that is over the cap. It bound
+		// `new Promise(resolve => ...)` to a `resolve` function in the next file,
+		// five times in a sample of thirty.
+		return candidate{}, false
+	}
+	dir := spec.packageOf(fr.Path)
+	var sameDir []registry.SymbolIndexEntry
+	for _, c := range cands {
+		if spec.packageOf(c.FilePath) == dir {
+			sameDir = append(sameDir, c)
+		}
+	}
+	if len(sameDir) != 1 {
+		return candidate{}, false
+	}
+	if spec.PackageIsDirectory {
+		return candidate{sameDir[0], model.ConfidenceHigh, "same package directory"}, true
+	}
+	return candidate{sameDir[0], model.ConfidenceMedium, "same directory, but the language requires an import"}, true
+}
+
+// narrowByReceiver keeps only the candidates the receiver could name.
+//
+// Returns nil when there is no receiver, so the caller can tell "not narrowed"
+// from "narrowed to nothing" — the second means the receiver contradicted every
+// candidate, which is information, and treating it as the first would resolve a
+// reference the evidence argues against.
+//
+// Gated on LanguageSpec.ReceiverDenotesType: where the parser has NOT rewritten
+// the receiver to its declared type, this is being asked to rescue an
+// over-subscribed name using a variable name, which is a guess. Go receivers are
+// `s`, `c`, `r`, and doing it there cost prometheus 1.7 points of
+// high-confidence precision while gaining nothing.
+func narrowByReceiver(spec LanguageSpec, ref registry.Reference, cands []registry.SymbolIndexEntry) []registry.SymbolIndexEntry {
+	if ref.Receiver == "" || !spec.ReceiverDenotesType {
+		return nil
+	}
+	var out []registry.SymbolIndexEntry
+	for _, c := range cands {
+		if strictReceiverMatch(spec, ref.Receiver, c) {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// strictReceiverMatch is the rescue-from-the-cap form of receiverMatches.
+//
+// A containment rule — the candidate's qualified
+// name CONTAINS the receiver — is not safe anywhere, and A16 excludes it from
+// receiverMatches. It is least safe HERE, where it decides between hundreds rather
+// than the handful pick() sees: a Go receiver named `s` or `c` is a substring
+// of nearly every qualified name, so it would keep most of them, slip under the
+// cap, and turn an honest "ambiguous" into a guess. Measured: prometheus lost
+// 1.7 points of high-confidence precision.
+//
+// The rule kept is that the candidate lives in a file NAMED for the receiver.
+// In Java, where a public class must live in a file of its own name, that is
+// the type — and the parser rewrites receivers to their declared type first, so
+// `b.build()` arrives here as `Builder`, matching Builder.java exactly.
+//
+// Deliberately NOT widened to receiverMatches' qualified-name channel. That
+// channel is sound, but this path is a rescue from a cap that exists precisely
+// because the evidence is thin, and the file-identity rule is the one that was
+// measured against ground truth here. Widening it is a change to make with a
+// measurement, not in passing.
+//
+// The length floor is part of that: `s.Save()` naming a file s.go is a
+// coincidence at this scale, not evidence. It, and the set of tokens that name
+// the enclosing instance rather than a type, are LanguageSpec.MinTypeNameLength
+// and LanguageSpec.SelfNames — see LanguageSpec.namesAType.
+func strictReceiverMatch(spec LanguageSpec, receiver string, c registry.SymbolIndexEntry) bool {
+	if !spec.namesAType(receiver) {
+		return false
+	}
+	r := strings.TrimPrefix(receiver, "*")
+	return strings.EqualFold(fileBaseName(c.FilePath), r)
+}
+
+// receiverMatches reports whether a receiver expression names the type that
+// OWNS a candidate.
+//
+// # A16 — why this validates rather than contains
+//
+// The inferred type is cheap: the receiver token itself, compared
+// case-insensitively. That covers both the languages where parse has already
+// rewritten the receiver to its declared type (`b.build()` arrives as
+// `Builder`; see varTypeQueries in internal/parse/queries.go) and the
+// convention that names a variable after its type — `transactionService`
+// naming a TransactionService.
+//
+// What is NOT cheap is what is done with it. A containment rule accepts any
+// candidate whose FQN CONTAINED the receiver, which is not a type test at all:
+// a receiver named `db` matched every qualified name with "db" anywhere in it —
+// dbutil, feedback, `internal/db/...` — and a single such accident became a
+// High-confidence edge to the wrong symbol, since tier 2 reports High whenever
+// exactly one candidate survives it. A cheap inference plus a loose test is how
+// a mis-inference is laundered into a fact.
+//
+// So the inference stays cheap and the ACCEPTANCE is exact: the candidate's
+// qualified name must actually END with `<InferredType><sep><Name>` for one of
+// the language's member separators, with the type occupying a whole segment.
+// `com.pay.TransactionService.updateStatus` is owned by TransactionService;
+// `com.pay.SubTransactionService.updateStatus` is not, and does not match.
+// A mis-inferred receiver yields NO edge instead of a wrong one, which is
+// the trade this package exists to make.
+//
+// The second channel is the same claim through a different piece of evidence:
+// a candidate defined in a file NAMED for the receiver. In Java a public class
+// must live in a file of its own name, and it is what rescues the qualified
+// names GraphLume synthesises for tree-sitter symbols, which are `path:name`
+// (model.DefaultFQN) and carry no owner at all. It is equality, not
+// containment.
+//
+// It still cannot see through interfaces, factories or dependency injection —
+// which is why a match yields High and never Exact.
+//
+// Note what a NON-match means: "this candidate's owner could not be confirmed",
+// never "the source says the owner is something else". The distinction is the
+// one A18 got wrong (see "Why candidates are not filtered before the tiers"
+// above), so callers must treat a failure here as
+// absence of evidence and fall through, not as grounds for exclusion.
+func receiverMatches(spec LanguageSpec, receiver string, c registry.SymbolIndexEntry) bool {
+	if !spec.usableReceiver(receiver) {
+		// Empty, or a self-reference that tells us nothing the same-file tier
+		// has not. Deliberately WITHOUT MinTypeNameLength: the ownership test
+		// below is exact, and adding a floor here would be a new filter — see
+		// LanguageSpec.usableReceiver.
+		return false
+	}
+	r := strings.TrimPrefix(receiver, "*")
+	if spec.QualifiedMembers {
+		// The qualified name says what a candidate is, so nothing is inferred
+		// from the receiver's spelling. A class MEMBER is reached through its
+		// class, and ResolveFile identifies that class exactly before any tier
+		// runs; a receiver that got this far could not be identified, and a
+		// class of the same name declaring the method somewhere is not evidence
+		// that it is this one. What is left is a module-level definition
+		// reached through its MODULE, which is the file-name channel.
+		return isModuleLevel(c) && strings.EqualFold(moduleStem(spec, c.FilePath), r)
+	}
+	if ownsQualifiedName(spec, c, r) {
+		return true
+	}
+	return strings.EqualFold(fileBaseName(c.FilePath), r)
+}
+
+// ownsQualifiedName reports whether c.FQN is exactly `<owner><sep><c.Name>`,
+// possibly behind further qualification (a package, an outer class).
+//
+// Three things have to hold, and dropping any one of them re-opens the
+// substring hole:
+//
+//   - the qualified name ENDS with the symbol's own name, so a candidate is
+//     never matched on a prefix of some longer member;
+//   - immediately before it is one of the language's member separators;
+//   - immediately before THAT is the owner as a WHOLE segment — either the
+//     qualified name starts there, or the byte in front of it cannot continue
+//     an identifier. Without this last test `SubTransactionService.updateStatus`
+//     answers to a receiver of `transactionService`, which is the substring bug
+//     wearing a suffix check.
+//
+// The boundary is "not an identifier byte" rather than "one of the separators
+// above" because qualified names carry delimiters that are not member
+// separators — SCIP writes a descriptor as “src/net.ts`Client#send“, and
+// requiring `#` on both sides would reject the very names the `#` was added
+// for. What has to be excluded is another identifier running into the owner,
+// and that is exactly what this tests.
+//
+// Compares with EqualFold over slices rather than lowercasing the FQN. This
+// runs per candidate per receiver-bearing reference, and
+// strings.ToLower would allocate a copy of every qualified name it looked at.
+func ownsQualifiedName(spec LanguageSpec, c registry.SymbolIndexEntry, owner string) bool {
+	if c.Name == "" || c.FQN == "" || len(c.FQN) <= len(c.Name)+len(owner) {
+		return false
+	}
+	head, ok := trimFoldSuffix(c.FQN, c.Name)
+	if !ok {
+		return false
+	}
+	for _, sep := range spec.MemberSeparators {
+		qualifier, ok := trimFoldSuffix(head, sep)
+		if !ok {
+			continue
+		}
+		rest, ok := trimFoldSuffix(qualifier, owner)
+		if !ok {
+			continue
+		}
+		if rest == "" || !isIdentByte(rest[len(rest)-1]) {
+			return true
+		}
+	}
+	return false
+}
+
+// trimFoldSuffix removes suffix from s, case-insensitively, reporting whether
+// it was there. Allocation-free.
+func trimFoldSuffix(s, suffix string) (string, bool) {
+	if len(s) < len(suffix) {
+		return "", false
+	}
+	cut := len(s) - len(suffix)
+	if !strings.EqualFold(s[cut:], suffix) {
+		return "", false
+	}
+	return s[:cut], true
+}
+
+// isIdentByte reports whether a byte can appear inside an identifier, and so
+// whether it would make the text before an owner run into the owner itself.
+//
+// ASCII-only on purpose. A non-ASCII byte has its high bit set and is reported
+// as an identifier byte, which is the conservative answer: it REJECTS the
+// match rather than accepting one whose segmentation was not understood.
+func isIdentByte(b byte) bool {
+	switch {
+	case b >= 'a' && b <= 'z', b >= 'A' && b <= 'Z', b >= '0' && b <= '9':
+		return true
+	case b == '_', b >= 0x80:
+		return true
+	default:
+		return false
+	}
+}
+
+// fileBaseName is a path's file name with its extension removed.
+func fileBaseName(p string) string {
+	base := path.Base(p)
+	return strings.TrimSuffix(base, path.Ext(base))
+}
+
+// sortCandidates orders deterministically so repeated resolution of the same
+// repository produces the same edges. The registry digest depends on it.
+func sortCandidates(cs []registry.SymbolIndexEntry) {
+	sort.Slice(cs, func(i, j int) bool {
+		if cs[i].FQN != cs[j].FQN {
+			return cs[i].FQN < cs[j].FQN
+		}
+		return cs[i].ID < cs[j].ID
+	})
+}
+
+// enclosing finds the innermost symbol whose line span contains line.
+//
+// Symbols arrive ordered by (start_line ASC, end_line DESC), so a linear scan
+// keeping the last match yields the INNERMOST enclosing symbol: a method inside
+// a class wins over the class. That matters because "who calls this" should
+// name the method, not the file's top-level type.
+func enclosing(symbols []registry.EnclosingSymbol, line int) (int64, bool) {
+	var best int64
+	var found bool
+	for _, s := range symbols {
+		if s.StartLine > line {
+			// Ordered by start line, so nothing further can contain it.
+			break
+		}
+		// end_line of 0 means the extractor gave no span; treat the symbol as
+		// covering only its own line rather than the rest of the file, which
+		// would attribute every later reference to it.
+		end := s.EndLine
+		if end == 0 {
+			end = s.StartLine
+		}
+		if line <= end {
+			best, found = s.ID, true
+		}
+	}
+	return best, found
+}
+
+// headerOwner finds the symbol whose span contains a position, by line and
+// column: of those that do, the one that starts last. `class A extends B {
+// void m() {} void k() {} }` on one line holds A, m and k by line alone, and
+// `B` sits in A's span but outside m's and k's. found is false when no span
+// has columns to say (an extractor that recorded none).
+func headerOwner(symbols []registry.EnclosingSymbol, line, col int) (int64, bool) {
+	var best registry.EnclosingSymbol
+	var found bool
+	for _, s := range symbols {
+		if s.StartLine > line {
+			break
+		}
+		if s.EndLine == 0 || s.Kind == registry.FileCallerKind {
+			continue
+		}
+		afterStart := s.StartLine < line || s.StartCol <= col
+		beforeEnd := s.EndLine > line || s.EndCol >= col
+		if !afterStart || !beforeEnd {
+			continue
+		}
+		if !found || s.StartLine > best.StartLine || (s.StartLine == best.StartLine && s.StartCol > best.StartCol) {
+			best, found = s, true
+		}
+	}
+	return best.ID, found
+}
+
+// fileLocalPrivate are the languages in which a definition the parser read as
+// private is private to its FILE: a C `static` function has internal linkage
+// (its own translation unit), and a Clojure `defn-` is reachable from its own
+// namespace, which is a file. A name another file's `extern` declaration or
+// `:refer` writes is a different definition, or none; no call reaches it. A Nim
+// name without the export marker and a D name marked `private` belong to their
+// module, which is the file, and a Crystal `private` method or type is the file's
+// (or the type's) own.
+var fileLocalPrivate = map[string]bool{"c": true, "clojure": true, "nim": true, "d": true, "crystal": true}
+
+// unreachablePrivate reports whether a call in file `from` cannot reach the
+// candidate because it is private to another file. A definition in a header
+// is the exception: `static inline` in a header is each includer's own copy,
+// and the include tiers decide which header a call sees.
+func unreachablePrivate(c registry.SymbolIndexEntry, from string) bool {
+	if !c.Private || c.FilePath == from || !fileLocalPrivate[c.Language] {
+		return false
+	}
+	switch strings.ToLower(path.Ext(c.FilePath)) {
+	case ".h", ".hh", ".hpp", ".hxx", ".inc", ".inl":
+		return false
+	}
+	return true
+}
+
+// callerOf is the symbol an edge written at line starts from: the innermost
+// definition that encloses it, or, for code outside every definition, the
+// file's own synthetic caller (registry.FileCallerKind) when it has one.
+//
+// It is for the SOURCE of an edge only. Anything that asks which class or
+// function a line is written in (the owner of `self`, the scope of a local)
+// keeps using enclosing, because a file is neither.
+func callerOf(fr registry.FileRefs, line int) (int64, bool) {
+	if id, ok := enclosing(fr.Symbols, line); ok {
+		return id, true
+	}
+	if fr.FileCaller != 0 {
+		return fr.FileCaller, true
+	}
+	return 0, false
+}
+
+// edgeKindFor maps a tree-sitter reference kind to a graph edge kind.
+func edgeKindFor(refKind string) model.EdgeKind {
+	switch {
+	case strings.Contains(refKind, "call"):
+		return model.EdgeCalls
+	case strings.Contains(refKind, "implementation"):
+		return model.EdgeImplements
+	case strings.Contains(refKind, "extend"), strings.Contains(refKind, "inherit"):
+		return model.EdgeExtends
+	case strings.EqualFold(refKind, "documents"):
+		return model.EdgeDocuments
+	default:
+		return model.EdgeReferences
+	}
+}
+
+// typeUseKind is the reference kind for a type written as a field's,
+// parameter's, local variable's or return type (parse/lang_java.go).
+const typeUseKind = "reference.type"
+
+func isTypeUse(refKind string) bool { return strings.HasSuffix(refKind, typeUseKind) }
+
+// typeCandidates keeps the definitions a type use can name.
+func typeCandidates(cands []registry.SymbolIndexEntry) []registry.SymbolIndexEntry {
+	out := cands[:0:0]
+	for _, c := range cands {
+		switch c.Kind {
+		case string(model.KindClass), string(model.KindInterface), string(model.KindTypeAlias):
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// foldCandidates gives a name written in another case the candidates of the
+// spellings the repository defines it under, for a language whose names are
+// case-insensitive: PowerShell's `write-log` is `Write-Log`.
+//
+// Exact case stays preferred, and by construction: a name that has candidates
+// as written is left alone, so a repository defining both spellings binds each
+// call to the spelling it wrote. Only a name with none borrows, from every
+// other spelling, in path order (declaredBefore) and never in id order, which
+// follows the order files were indexed in. The scoping rules that decide which
+// of those a call can reach (what was dot-sourced, what was imported) run
+// afterwards, unchanged, over the larger set.
+func (r *Resolver) foldCandidates(ctx context.Context, spec LanguageSpec, fr registry.FileRefs, symbols map[string][]registry.SymbolIndexEntry) error {
+	src, ok := r.candidates.(Spelled)
+	if !ok {
+		return nil
+	}
+	var table map[string][]string
+	for _, ref := range fr.Refs {
+		if len(symbols[ref.Name]) > 0 {
+			continue
+		}
+		if _, checked := symbols[ref.Name]; checked {
+			continue
+		}
+		if table == nil {
+			var err error
+			if table, err = src.Spellings(ctx, spec.Name); err != nil {
+				return err
+			}
+		}
+		spellings := table[strings.ToLower(ref.Name)]
+		if len(spellings) == 0 {
+			symbols[ref.Name] = nil
+			continue
+		}
+		got, err := r.candidates.Candidates(ctx, spellings)
+		if err != nil {
+			return err
+		}
+		var merged []registry.SymbolIndexEntry
+		for _, name := range spellings {
+			merged = append(merged, got[name]...)
+		}
+		sort.Slice(merged, func(i, j int) bool { return declaredBefore(merged[i], merged[j]) })
+		symbols[ref.Name] = merged
+	}
+	return nil
+}

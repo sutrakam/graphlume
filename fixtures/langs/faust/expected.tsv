@@ -1,0 +1,43 @@
+# Faust. Rule: every definition made at the top level of the file. name(args)=
+# is function, and each clause of a pattern-matching definition (fact(0), fact(n))
+# is its own function symbol; `process` is function (the entry point);
+# name = library("x") and name = environment {...} are package; any other
+# name = expr is constant. declare, import, and definitions local to a with,
+# letrec or environment block are not definitions.
+synth.dsp	9	constant	N
+synth.dsp	10	constant	SR
+synth.dsp	11	constant	tau
+synth.dsp	12	constant	gain
+synth.dsp	13	constant	freq
+synth.dsp	14	constant	volume
+synth.dsp	15	package	filters
+synth.dsp	16	package	osc
+synth.dsp	21	function	square
+synth.dsp	22	function	twice
+synth.dsp	23	function	scale
+synth.dsp	24	function	mix
+synth.dsp	25	function	lowpass
+synth.dsp	27	function	ramp
+synth.dsp	30	function	voice
+synth.dsp	37	function	fact
+synth.dsp	38	function	fact
+synth.dsp	41	constant	counter
+synth.dsp	43	function	stereo
+synth.dsp	44	function	pan
+synth.dsp	46	function	process
+effects.dsp	10	function	reverb
+effects.dsp	18	constant	delaytime
+effects.dsp	22	constant	feedback
+effects.dsp	24	function	echo
+effects.dsp	26	function	chorus
+effects.dsp	32	constant	sub
+effects.dsp	33	package	dsp
+effects.dsp	34	package	util
+effects.dsp	40	function	bypass
+effects.dsp	41	constant	limiter
+effects.dsp	42	function	gainstage
+effects.dsp	43	constant	duplicate
+effects.dsp	44	constant	mono2stereo
+effects.dsp	45	function	tremolo
+effects.dsp	47	constant	effect
+effects.dsp	49	function	process

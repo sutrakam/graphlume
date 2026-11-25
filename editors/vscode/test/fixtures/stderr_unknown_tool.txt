@@ -1,0 +1,1 @@
+error: no tool named "nope" on the "full" profile. Run 'graphlume tool list' to see every tool.

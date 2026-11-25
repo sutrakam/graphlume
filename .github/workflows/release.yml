@@ -1,0 +1,477 @@
+# Manual only, and only for the repository owner. Push a v* tag, then run this
+# workflow from that tag (Actions -> Release -> Run workflow -> Use workflow
+# from: Tags -> vX.Y.Z). verify gates everything; the jobs after release add
+# signatures, SBOMs, MCP bundles, the container image and the Homebrew formula.
+name: Release
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  GO_VERSION: "1.26.11"
+  IMAGE: ghcr.io/sutrakam/graphlume
+
+jobs:
+  verify:
+    name: Verify before publishing
+    if: github.triggering_actor == 'satyendrakumarsingh' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with: { go-version: "${{ env.GO_VERSION }}", cache: true }
+      - name: gofmt and vet
+        run: |
+          test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+          go vet ./...
+      - name: tests
+        run: go test -timeout 20m ./...
+
+  release:
+    name: Build & Publish Release
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write # create the release and upload its assets
+    outputs:
+      version: ${{ steps.vars.outputs.version }}
+      tag_name: ${{ steps.vars.outputs.tag_name }}
+      is_prerelease: ${{ steps.vars.outputs.is_prerelease }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go Environment
+        uses: actions/setup-go@v7
+        with:
+          go-version: "${{ env.GO_VERSION }}"
+          cache: true
+
+      - name: Resolve Version and Tag
+        id: vars
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            if [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+$ ]]; then
+              SEMVER_TAG="$(git tag --points-at HEAD "v*.*.*" 2>/dev/null | head -n1 || echo "")"
+              if [ -n "$SEMVER_TAG" ]; then
+                VERSION="$SEMVER_TAG"
+                TAG_NAME="$SEMVER_TAG"
+              else
+                VERSION="$GITHUB_REF_NAME"
+                TAG_NAME="$GITHUB_REF_NAME"
+              fi
+            else
+              VERSION="$GITHUB_REF_NAME"
+              TAG_NAME="$GITHUB_REF_NAME"
+            fi
+            IS_PRERELEASE="false"
+            [[ "$TAG_NAME" == *-* ]] && IS_PRERELEASE="true"
+            TITLE="GraphLume ${VERSION}"
+          else
+            echo "::error::a release needs a v* tag"; exit 1
+          fi
+          {
+            echo "version=${VERSION}"
+            echo "tag_name=${TAG_NAME}"
+            echo "is_prerelease=${IS_PRERELEASE}"
+            echo "title=${TITLE}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Cross-compile Multi-arch Targets and Create Universal Binary
+        shell: bash
+        env:
+          VERSION: ${{ steps.vars.outputs.version }}
+        run: |
+          set -euo pipefail
+          build_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          commit=$(git rev-parse HEAD)
+          pkg="github.com/sutrakam/graphlume/internal/cli"
+          ldflags="-s -w -X ${pkg}.Version=${VERSION} -X ${pkg}.Commit=${commit} -X ${pkg}.BuildTime=${build_time}"
+
+          mkdir -p dist
+
+          echo "==> Building darwin/amd64"
+          mkdir -p dist/darwin_amd64
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags "$ldflags" -o dist/darwin_amd64/graphlume ./cmd/graphlume
+          cp LICENSE NOTICE README.md dist/darwin_amd64/
+          tar -czf "dist/graphlume_${VERSION}_darwin_amd64.tar.gz" -C dist/darwin_amd64 graphlume LICENSE NOTICE README.md
+
+          echo "==> Building darwin/arm64"
+          mkdir -p dist/darwin_arm64
+          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags "$ldflags" -o dist/darwin_arm64/graphlume ./cmd/graphlume
+          cp LICENSE NOTICE README.md dist/darwin_arm64/
+          tar -czf "dist/graphlume_${VERSION}_darwin_arm64.tar.gz" -C dist/darwin_arm64 graphlume LICENSE NOTICE README.md
+
+          echo "==> Creating universal macOS binary (graphlume-mac.zip)"
+          sudo apt-get update && sudo apt-get install -y llvm zip
+          mkdir -p dist/universal_mac
+          lipo="$(command -v llvm-lipo || find /usr/bin /usr/lib/llvm-*/bin -name 'llvm-lipo*' -type f -o -name 'llvm-lipo*' -type l 2>/dev/null | sort -V | tail -n1)"
+          if [ -z "$lipo" ]; then echo "::error::llvm-lipo not found after installing llvm"; exit 1; fi
+          "$lipo" -create -output dist/universal_mac/graphlume dist/darwin_amd64/graphlume dist/darwin_arm64/graphlume
+          cp LICENSE NOTICE README.md dist/universal_mac/
+          (cd dist/universal_mac && zip -qr "../graphlume-mac.zip" graphlume LICENSE NOTICE README.md)
+
+          echo "==> Building linux/amd64"
+          mkdir -p dist/linux_amd64
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "$ldflags" -o dist/linux_amd64/graphlume ./cmd/graphlume
+          cp LICENSE NOTICE README.md dist/linux_amd64/
+          tar -czf "dist/graphlume_${VERSION}_linux_amd64.tar.gz" -C dist/linux_amd64 graphlume LICENSE NOTICE README.md
+
+          echo "==> Building linux/arm64"
+          mkdir -p dist/linux_arm64
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "$ldflags" -o dist/linux_arm64/graphlume ./cmd/graphlume
+          cp LICENSE NOTICE README.md dist/linux_arm64/
+          tar -czf "dist/graphlume_${VERSION}_linux_arm64.tar.gz" -C dist/linux_arm64 graphlume LICENSE NOTICE README.md
+
+          echo "==> Building linux/amd64 (cgo parser)"
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          mkdir -p dist/linux_amd64_cgo
+          CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -tags cgo_parser -trimpath -ldflags "$ldflags" -o dist/linux_amd64_cgo/graphlume ./cmd/graphlume
+          cp LICENSE NOTICE README.md dist/linux_amd64_cgo/
+          tar -czf "dist/graphlume_${VERSION}_linux_amd64_cgo.tar.gz" -C dist/linux_amd64_cgo graphlume LICENSE NOTICE README.md
+
+          echo "==> Building linux/arm64 (cgo parser)"
+          mkdir -p dist/linux_arm64_cgo
+          CC=aarch64-linux-gnu-gcc CGO_ENABLED=1 GOOS=linux GOARCH=arm64 go build -tags cgo_parser -trimpath -ldflags "$ldflags" -o dist/linux_arm64_cgo/graphlume ./cmd/graphlume
+          cp LICENSE NOTICE README.md dist/linux_arm64_cgo/
+          tar -czf "dist/graphlume_${VERSION}_linux_arm64_cgo.tar.gz" -C dist/linux_arm64_cgo graphlume LICENSE NOTICE README.md
+
+          echo "==> Building windows/amd64"
+          mkdir -p dist/windows_amd64
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "$ldflags" -o dist/windows_amd64/graphlume.exe ./cmd/graphlume
+          cp LICENSE NOTICE README.md dist/windows_amd64/
+          (cd dist/windows_amd64 && zip -qr "../graphlume_${VERSION}_windows_amd64.zip" graphlume.exe LICENSE NOTICE README.md)
+          cp dist/windows_amd64/graphlume.exe dist/graphlume.exe
+
+          rm -rf dist/darwin_amd64 dist/darwin_arm64 dist/universal_mac dist/linux_amd64 dist/linux_arm64 dist/linux_amd64_cgo dist/linux_arm64_cgo dist/windows_amd64
+
+          echo "==> Generating SHA256 checksums"
+          # shellcheck disable=SC2035
+          (cd dist && shasum -a 256 *.tar.gz *.zip *.exe > SHA256SUMS)
+          cat dist/SHA256SUMS
+
+      - name: Verify Version Stamp
+        shell: bash
+        env:
+          VERSION: ${{ steps.vars.outputs.version }}
+        run: ./scripts/release/verify-stamp.sh "$VERSION"
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: graphlume-release-${{ steps.vars.outputs.version }}
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/graphlume.exe
+            dist/SHA256SUMS
+          if-no-files-found: error
+
+      - name: Release Notes from the Changelog
+        shell: bash
+        env:
+          TAG_NAME: ${{ steps.vars.outputs.tag_name }}
+        run: |
+          set -euo pipefail
+          v="${TAG_NAME#v}"
+          awk -v v="$v" '$0 ~ "^## \\[" v "\\]" {on=1; next} on && /^## \[/ {exit} on {print}' CHANGELOG.md > dist/RELEASE_NOTES.md
+          if [ ! -s dist/RELEASE_NOTES.md ]; then echo "::error::CHANGELOG.md has no section for $v"; exit 1; fi
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
+        with:
+          tag_name: ${{ steps.vars.outputs.tag_name }}
+          name: ${{ steps.vars.outputs.title }}
+          draft: false
+          prerelease: ${{ steps.vars.outputs.is_prerelease == 'true' }}
+          body_path: dist/RELEASE_NOTES.md
+          files: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/graphlume.exe
+            dist/SHA256SUMS
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  provenance:
+    name: Sign, Attest & SBOM
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write # attach the signature bundle and the SBOMs to the release
+      id-token: write # the OIDC token Sigstore exchanges for a signing certificate
+      attestations: write # store the build-provenance attestations
+    env:
+      VERSION: ${{ needs.release.outputs.version }}
+      TAG_NAME: ${{ needs.release.outputs.tag_name }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Download Release Artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: graphlume-release-${{ needs.release.outputs.version }}
+          path: dist
+
+      - name: Check Artifacts Against SHA256SUMS
+        id: check
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          sha256sum -c SHA256SUMS
+
+      - name: Setup Go Environment
+        id: go
+        if: ${{ !cancelled() && steps.check.outcome == 'success' }}
+        uses: actions/setup-go@v7
+        with:
+          go-version: "${{ env.GO_VERSION }}"
+          cache: false
+
+      - name: Generate SBOMs (CycloneDX)
+        id: sbom
+        if: ${{ !cancelled() && steps.go.outcome == 'success' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./scripts/release/sbom.sh "$VERSION" dist sbom
+
+      - name: Attach SBOMs to the Release
+        if: ${{ !cancelled() && steps.sbom.outcome == 'success' && needs.release.outputs.is_prerelease == 'false' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release upload "$TAG_NAME" sbom/*.cdx.json --clobber
+
+      - name: Install cosign
+        id: cosign
+        if: ${{ !cancelled() && steps.check.outcome == 'success' }}
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+
+      - name: Sign SHA256SUMS
+        if: ${{ !cancelled() && steps.cosign.outcome == 'success' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cosign sign-blob --yes \
+            --bundle dist/SHA256SUMS.sigstore.json \
+            dist/SHA256SUMS
+          gh release upload "$TAG_NAME" dist/SHA256SUMS.sigstore.json --clobber
+
+      - name: Attest Build Provenance (archives)
+        if: ${{ !cancelled() && steps.check.outcome == 'success' }}
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/graphlume.exe
+
+      - name: Attest Build Provenance (SBOMs)
+        if: ${{ !cancelled() && steps.sbom.outcome == 'success' && needs.release.outputs.is_prerelease == 'false' }}
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: sbom/*.cdx.json
+
+  bundle:
+    name: MCP Bundles
+    needs: release
+    if: ${{ needs.release.outputs.is_prerelease == 'false' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write # attach the bundles to the release
+      id-token: write # the OIDC token Sigstore exchanges for a signing certificate
+      attestations: write # store the build-provenance attestation
+    env:
+      VERSION: ${{ needs.release.outputs.version }}
+      TAG_NAME: ${{ needs.release.outputs.tag_name }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Download Release Artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: graphlume-release-${{ needs.release.outputs.version }}
+          path: dist
+
+      - name: Build MCP Bundles
+        id: build
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd dist && sha256sum -c SHA256SUMS)
+          ./scripts/release/build-mcpb.sh "$VERSION" dist mcpb
+
+      - name: Attach MCP Bundles to the Release
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release upload "$TAG_NAME" mcpb/*.mcpb mcpb/MCPB_SHA256SUMS --clobber
+
+      - name: Attest Build Provenance (bundles)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: mcpb/*.mcpb
+
+  homebrew:
+    name: Homebrew Formula
+    needs: release
+    if: ${{ needs.release.outputs.is_prerelease == 'false' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions: {}
+    env:
+      TAG_NAME: ${{ needs.release.outputs.tag_name }}
+      TAP: sutrakam/homebrew-tap
+      GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Download Release Artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: graphlume-release-${{ needs.release.outputs.version }}
+          path: dist
+
+      - name: Render the Formula
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd dist && sha256sum -c SHA256SUMS)
+          ./scripts/release/render-homebrew-formula.sh "$TAG_NAME" dist/SHA256SUMS > graphlume.rb
+          ruby -c graphlume.rb
+
+      - name: Open the Bump on the Tap
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::notice::HOMEBREW_TAP_TOKEN is not set; the formula was rendered and not published. Copy packaging/homebrew/graphlume.rb to the tap by hand."
+            exit 0
+          fi
+          branch="graphlume-${TAG_NAME}"
+          git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/${TAP}.git" tap
+          cd tap
+          git checkout -b "$branch"
+          mkdir -p Formula
+          cp ../graphlume.rb Formula/graphlume.rb
+          git add Formula/graphlume.rb
+          if git diff --cached --quiet; then
+            echo "The tap already has this formula."
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -m "graphlume ${TAG_NAME}"
+          git push -q --force origin "$branch"
+          if gh pr view "$branch" --repo "$TAP" >/dev/null 2>&1; then
+            echo "The pull request for ${branch} is already open; its branch was updated."
+          else
+            gh pr create --repo "$TAP" --head "$branch" --base main \
+              --title "graphlume ${TAG_NAME}" \
+              --body "Formula rendered from the ${TAG_NAME} SHA256SUMS by the release workflow."
+          fi
+
+  image:
+    name: Container Image
+    needs: release
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read # checkout
+      packages: write # push to ghcr.io
+      id-token: write # the OIDC token Sigstore exchanges for a signing certificate
+      attestations: write # store the build-provenance attestation
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Resolve Image Tags
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          tags="${IMAGE}:${version}"
+          case "$version" in
+            *-*) ;;
+            *) tags="${tags},${IMAGE}:${version%.*},${IMAGE}:latest" ;;
+          esac
+          {
+            echo "tags=${tags}"
+            echo "build_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Log In to GHCR
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          provenance: false
+          sbom: false
+          build-args: |
+            GO_VERSION=${{ env.GO_VERSION }}
+            VERSION=${{ github.ref_name }}
+            COMMIT=${{ github.sha }}
+            BUILD_TIME=${{ steps.meta.outputs.build_time }}
+
+      - name: Install cosign
+        id: cosign
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+
+      - name: Sign the Image
+        if: ${{ !cancelled() && steps.cosign.outcome == 'success' }}
+        shell: bash
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          cosign sign --yes "${IMAGE}@${DIGEST}"
+
+      - name: Attest Build Provenance (image)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+          create-storage-record: false

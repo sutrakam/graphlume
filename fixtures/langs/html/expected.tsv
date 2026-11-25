@@ -1,0 +1,28 @@
+# Rule: an element with an id attribute is a variable named by the id value
+# (no quotes), on the line its start tag begins. Not definitions: tag names
+# (custom elements included), class / name / data-* / for attributes, anchor
+# links, an empty id, an id containing white space, an id that is template
+# syntax ({{ }}, <% %>, ${ }, @), and anything inside <script>, <style> or a
+# comment. Narrow because an id is unique per document and is the only name
+# markup gives an element; every other attribute repeats across elements.
+index.html	12	variable	site-header
+index.html	13	variable	main-nav
+index.html	15	variable	unquoted-link
+index.html	19	variable	content
+index.html	20	variable	stats-panel
+index.html	21	variable	title
+index.html	22	variable	search-box
+index.html	23	variable	save-btn
+index.html	25	variable	logo
+index.html	26	variable	spacer
+index.html	29	variable	custom-el
+index.html	33	variable	item-1
+index.html	34	variable	item-2
+index.html	39	variable	upper-case-attr
+index.html	49	variable	app-script
+template.html	1	variable	app-shell
+template.html	4	variable	icon-sprite
+template.html	5	variable	avatar
+template.html	6	variable	email-field
+template.html	14	variable	submit-order
+template.html	17	variable	shout

@@ -1,0 +1,21 @@
+{
+  "is_error": false,
+  "result": {
+    "index_revision": 1,
+    "index_status": "ready",
+    "notes": [
+      "Filtered to confidence \"exact\" and above: 55 lower-confidence result(s) were omitted; re-run with min_confidence=\"low\" to see them.",
+      "No results found — but this is a LOWER BOUND, not proof there are none. 32615 of 53080 references in this repository are unresolved or ambiguous, so a real reference may exist that GraphLume could not bind. Do not treat this as evidence the symbol is unused."
+    ],
+    "provenance": {
+      "age_seconds": 229,
+      "built_at_sha": "6fadd51b76b45129669a667d0a93a45050be12ae",
+      "caveat": "This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.",
+      "head_matches_build": true,
+      "head_sha": "6fadd51b76b45129669a667d0a93a45050be12ae"
+    },
+    "summary": "0 caller(s) of emitJSON (internal/cli/commands.go:28)."
+  },
+  "text": "=== SYSTEM METADATA ===\n0 caller(s) of emitJSON (internal/cli/commands.go:28).\nindex_revision: 1  status: ready\nnote: Filtered to confidence \"exact\" and above: 55 lower-confidence result(s) were omitted; re-run with min_confidence=\"low\" to see them.\nnote: No results found — but this is a LOWER BOUND, not proof there are none. 32615 of 53080 references in this repository are unresolved or ambiguous, so a real reference may exist that GraphLume could not bind. Do not treat this as evidence the symbol is unused.\nprovenance: This compares commits only. Staged, unstaged and untracked changes are invisible to the index and are NOT reflected here — a matching commit does not mean the working tree matches.\n",
+  "tool": "callers"
+}

@@ -1,0 +1,23 @@
+@use "sass:color";
+
+$gap: 8px;
+
+@mixin first($name, $value) {
+  @include log($name, color.channel($value, "red", $space: rgb));
+}
+
+@mixin second($name, $value) {
+  @include log($name, color.channel($value, "hue", $space: hsl));
+}
+
+@function third($c) {
+  @return $c;
+}
+
+.plain {
+  color: red;
+}
+
+.#{$prefix}wrapped {
+  margin: 0;
+}

@@ -1,0 +1,62 @@
+# Svelte components, read through their <script> blocks (internal/parse/sfc.go).
+# Lines are lines of the .svelte file. A definition is:
+#   the component itself: the file name, as a class at line 1 (not for +page.svelte and other
+#     names that are routes or companions);
+#   function, class, interface, type, enum and method declarations the script language finds
+#     (in the module script and the instance script alike);
+#   a top-level const -> constant, let or var -> variable, export let -> field (a prop); a const
+#     bound to a function or arrow function stays a function;
+#   the names destructured from $props() -> field;
+#   $: name = ... -> variable;
+#   {#snippet name(...)} in the markup -> function.
+# A method written in object shorthand (get x() {}, onClick() {}) or a function-valued property is a
+#   method only in the component's own options object; in an object that is an argument of a call
+#   (createTable({ get data() {} }), computed(() => ({ f() {} }))) or is bound to a name it is not
+#   (Table.svelte). Methods of a class are always methods.
+# Not definitions: anything inside a function body, imports, $: statements that assign nothing,
+# $effect calls, a snippet inside a comment or an expression string.
++page.svelte	2	field	data
++page.svelte	4	constant	greeting
++page.svelte	6	function	shout
+Legacy.svelte	1	class	Legacy
+Legacy.svelte	2	constant	ENTER_KEY
+Legacy.svelte	4	function	preload
+Legacy.svelte	12	field	title
+Legacy.svelte	13	field	items
+Legacy.svelte	14	field	visible
+Legacy.svelte	16	interface	Todo
+Legacy.svelte	21	type_alias	Filter
+Legacy.svelte	23	constant	MAX_ITEMS
+Legacy.svelte	24	variable	currentFilter
+Legacy.svelte	25	variable	editing
+Legacy.svelte	26	variable	legacyFlag
+Legacy.svelte	28	variable	filtered
+Legacy.svelte	29	variable	remaining
+Legacy.svelte	37	function	toggle
+Legacy.svelte	41	function	remove
+Legacy.svelte	49	function	handleKey
+Markup.svelte	1	class	Markup
+Runes.svelte	1	class	Runes
+Runes.svelte	29	function	row
+Runes.svelte	33	function	header
+Runes.svelte	34	function	nested
+Runes.svelte	4	interface	Props
+Runes.svelte	9	field	label
+Runes.svelte	9	field	count
+Runes.svelte	9	field	className
+Runes.svelte	9	field	parents
+Runes.svelte	9	field	open
+Runes.svelte	9	field	children
+Runes.svelte	11	variable	position
+Runes.svelte	12	constant	doubled
+Runes.svelte	13	variable	total
+Runes.svelte	15	function	bump
+Runes.svelte	20	function	reset
+Table.svelte	1	class	Table
+Table.svelte	2	field	rows
+Table.svelte	4	variable	selection
+Table.svelte	6	constant	table
+Table.svelte	21	function	reset
+Table.svelte	25	class	Cell
+Table.svelte	26	method	value
+Table.svelte	29	method	render

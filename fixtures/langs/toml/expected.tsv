@@ -1,0 +1,18 @@
+# Rule: a table header [a.b] is a package named by its dotted path, without
+# the brackets and without white space around the dots; a quoted segment keeps
+# its quotes. Not definitions: keys, inline tables, values, arrays of tables
+# ([[a]], repeated by construction), and the sections every manifest has
+# (package, lib, workspace, features, build-system, project, any *dependencies).
+# Narrow because a key is a setting (the config analyser already reports them)
+# and manifest boilerplate would repeat once per crate or project.
+service.toml	6	package	server
+service.toml	10	package	server.tls
+service.toml	14	package	database.primary
+service.toml	18	package	database.replica
+service.toml	22	package	plugins."my.plugin"
+service.toml	25	package	logging.file
+service.toml	29	package	limits
+service.toml	44	package	jobs.nightly.retry
+manifest.toml	46	package	tool.ruff
+manifest.toml	49	package	tool.ruff.lint
+manifest.toml	52	package	profile.release

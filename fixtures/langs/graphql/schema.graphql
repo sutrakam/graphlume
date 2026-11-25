@@ -1,0 +1,138 @@
+schema {
+  query: Query
+  mutation: Mutation
+}
+
+"""A moment in time, as an ISO 8601 string."""
+scalar DateTime
+
+scalar Json
+
+"""Marks a field as only visible to some roles."""
+directive @auth(
+  role: String = "user"
+) on FIELD_DEFINITION | OBJECT
+
+directive @cacheFor(seconds: Int!) on QUERY
+
+"""Anything with an id."""
+interface Node {
+  id: ID!
+}
+
+interface Timestamped implements Node {
+  id: ID!
+  createdAt: DateTime!
+}
+
+"""A person who uses the service."""
+type User implements Node & Timestamped {
+  id: ID!
+  """Display name."""
+  name: String!
+  createdAt: DateTime!
+  posts(first: Int = 10, after: String): [Post!]!
+  role: Role!
+}
+
+type Post implements Node {
+  id: ID!
+  author: User!
+  body: String
+}
+
+"""What a person may do."""
+enum Role {
+  ADMIN
+  MEMBER
+  GUEST
+}
+
+enum Order {
+  ASC
+  DESC
+}
+
+"""Anything a search can return."""
+union SearchResult = User | Post
+
+union Empty
+
+"""Fields for creating a post."""
+input NewPost {
+  authorId: ID!
+  body: String!
+}
+
+input PostFilter {
+  authorId: ID
+  order: Order = DESC
+}
+
+type Query {
+  me: User
+  search(term: String!): [SearchResult!]!
+}
+
+type Mutation {
+  createPost(input: NewPost!): Post!
+}
+
+type Subscription {
+  postAdded: Post!
+}
+
+extend type User {
+  email: String
+}
+
+extend interface Node {
+  version: Int
+}
+
+extend enum Role {
+  OWNER
+}
+
+extend scalar Json @auth
+
+extend union SearchResult = Query
+
+extend input NewPost {
+  draft: Boolean
+}
+
+query GetUser($id: ID!) {
+  node(id: $id) {
+    ...UserFields
+  }
+}
+
+query {
+  me {
+    name
+  }
+}
+
+mutation CreatePost($input: NewPost!) {
+  createPost(input: $input) {
+    id
+  }
+}
+
+subscription OnPost {
+  postAdded {
+    id
+  }
+}
+
+fragment UserFields on User {
+  id
+  name
+}
+
+{
+  me {
+    id
+  }
+}

@@ -1,0 +1,777 @@
+// Package pipeline wires discovery and parsing into an indexing run.
+//
+// It deliberately does not know how facts are stored. The Sink interface below
+// is the whole contract with the persistence layer, which keeps this package
+// testable without a database and lets the registry evolve independently.
+//
+// Naming note: this is the source-indexing pipeline. internal/indexer is a
+// different thing — orchestration of external compiler-backed SCIP indexers.
+package pipeline
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"math"
+	"os"
+	"path/filepath"
+	"runtime"
+	"runtime/debug"
+	"sort"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"github.com/sutrakam/graphlume/internal/acquire/fs"
+	"github.com/sutrakam/graphlume/internal/analyze"
+	"github.com/sutrakam/graphlume/internal/analyze/api"
+	"github.com/sutrakam/graphlume/internal/analyze/infra"
+	"github.com/sutrakam/graphlume/internal/parse"
+	"github.com/sutrakam/graphlume/pkg/model"
+)
+
+// FileFacts is everything one file contributed to the index.
+type FileFacts struct {
+	File       model.File
+	Symbols    []model.Symbol
+	References []parse.Reference
+	Imports    []parse.Import
+
+	// Analysis is the API and database facts this file contributed: endpoint
+	// and table nodes, the routes they expose, and the tables the file's code
+	// reads or writes. Empty for the overwhelming majority of files, which
+	// declare no routes and run no queries.
+	Analysis analyze.Result
+
+	// Calls are the outbound HTTP requests this file makes.
+	//
+	// Extracted here rather than inside analyze.File because they are not
+	// resolvable facts about this file: a call names an endpoint some OTHER
+	// file declares, so it is staged and bound in a second pass. Keeping it
+	// beside Analysis rather than inside it keeps that difference visible at
+	// the point a reader asks why one is written immediately and the other is
+	// not. See migration 0001.
+	Calls []api.Call
+
+	// Infra is what a DEPLOYMENT MANIFEST declared: the services this file says
+	// exist, the ports they open, the configuration key names they set, and the
+	// documents inside it that could not be read.
+	//
+	// Kept beside Analysis rather than inside it because the two answer opposite
+	// questions. analyze.Result is what this file's SOURCE does; this is what
+	// the code RUNS AS, and it is produced from a file that usually has no
+	// grammar at all. Nothing here holds a configuration value — see
+	// internal/analyze/infra's package comment.
+	Infra infra.File
+	// HasInfra distinguishes "this file is a manifest that declared nothing"
+	// from "this file is not a manifest". Only the first is worth a row.
+	HasInfra bool
+
+	// Content is retained only for search indexing. It is not persisted as
+	// source; the registry stores an FTS row and line ranges, never a copy of
+	// the repository.
+	Content []byte
+}
+
+// Sink receives facts as they are produced.
+//
+// Implementations must be safe for concurrent use: the pipeline parses across
+// many goroutines and writes as results arrive, rather than buffering an entire
+// repository in memory.
+type Sink interface {
+	// WriteFile persists one file's facts. Returning an error aborts the run,
+	// so implementations should only fail on genuine persistence problems —
+	// a file that failed to parse is normal data, not an error.
+	WriteFile(ctx context.Context, facts FileFacts) error
+}
+
+// CompletenessRecorder is an optional capability of a Sink: one that persists
+// into a durable run can be told, once, how much of what was discovered the run
+// actually covered.
+//
+// Optional rather than part of Sink because most sinks are test doubles with
+// nothing to record it on, and widening the one interface the pipeline's
+// persistence contract consists of would make every one of them implement a
+// method it has no use for (docs/development.md §3, ISP).
+//
+// The Runner calls it exactly once, after the worker pool is joined and the
+// counters are final. A sink that returns an error here fails the run: a
+// shortfall the sink refused to record is a shortfall nobody will ever see.
+type CompletenessRecorder interface {
+	RecordCompleteness(ctx context.Context, r Reconciliation) error
+}
+
+// SinkFunc adapts a function to Sink.
+type SinkFunc func(ctx context.Context, facts FileFacts) error
+
+func (f SinkFunc) WriteFile(ctx context.Context, facts FileFacts) error { return f(ctx, facts) }
+
+// Stats summarises a run. Every number is counted, never estimated.
+type Stats struct {
+	FilesDiscovered int64
+	// FilesIndexed counts files a syntax tree was built for: read cleanly,
+	// read with syntax errors, or stopped early. FilesSkipped counts files no
+	// tree was attempted for, which includes the text-only files (searchable,
+	// no symbols) and the files over the size limit. The breakdown of both is
+	// read back from the index: registry.ParseSummary.
+	FilesIndexed  int64
+	FilesSkipped  int64
+	ParseFailures int64
+	Symbols       int64
+	References    int64
+	Imports       int64
+
+	// Reconciliation proves the run covered everything it discovered, which is
+	// a separate guarantee from the registry's atomic swap proving it was
+	// published all-or-nothing. See reconcile.go.
+	//
+	// Callers that publish a run should persist Reconciliation.State and
+	// surface Reconciliation.Warning() when it is non-empty.
+	Reconciliation Reconciliation
+}
+
+// DefaultInFlightBytes caps the source bytes being parsed simultaneously.
+//
+// 32 MiB of source, not of memory. Tree-sitter trees are one to two orders of
+// magnitude larger than their input, so this admits roughly a gigabyte of peak
+// parse state — enough to keep every core busy on ordinary code, low enough
+// that a directory of generated files cannot exhaust the machine.
+//
+// Chosen from measurement rather than taste: see the table in budget.go.
+//
+// It governs ADMISSION, not peak memory. Varying it eightfold moved peak RSS
+// on spring-boot by less than run-to-run noise; see Options.MaxInFlightBytes
+// for the numbers and DefaultDrainThreshold for the knob that does move it.
+const DefaultInFlightBytes int64 = 32 << 20
+
+// Default parse concurrency.
+//
+// The worker count is sized for memory first and CPU second. Measured on a
+// 10,920-file tree:
+//
+//	workers   peak heap   elapsed
+//	      2     1,293 MB       58s
+//	      4     1,595 MB       54s
+//	      8     2,502 MB       54s
+//	     10     6,531 MB       44s
+//
+// Tree-sitter's GLR parser allocates large node arenas per file, so every
+// additional worker adds to peak memory, while throughput flattens early
+// because parsing is bound by memory bandwidth more than by CPU. On a corpus
+// of small files the picture is gentler (docs/performance.md, "Parallelism and
+// peak memory": about 40 MB of peak RSS per extra worker, and throughput still
+// rising at 10), which is why the default grows with the machine instead of
+// staying at one number.
+const (
+	// WorkersFloor is the fewest default workers on a machine with at least
+	// that many CPUs: near-peak throughput on every tree measured.
+	WorkersFloor = 4
+
+	// WorkersCeiling is the most default workers, however many CPUs there
+	// are. Past it the measured gain is small and the memory is not.
+	WorkersCeiling = 8
+
+	// WorkerMemoryBase is the memory a run needs before any worker is
+	// counted: one worker on the 5,000-file corpus peaks at 255 MB, almost
+	// all of it the graph being written and the walker's file list.
+	WorkerMemoryBase int64 = 256 << 20
+
+	// WorkerMemoryBudget is the memory set aside for each worker. Measured
+	// small-file growth is about 40 MB per worker; 64 MiB leaves room for
+	// the larger files a real repository mixes in, so that the soft memory
+	// limit is met rather than merely aimed at.
+	WorkerMemoryBudget int64 = 64 << 20
+)
+
+// DefaultWorkers is the parse concurrency a run uses when Options.Workers is
+// not set, for this machine's CPUs and the given soft memory limit (see
+// WorkersFor). A limit of zero or less reads the runtime's current one.
+func DefaultWorkers(memoryLimit int64) int {
+	if memoryLimit <= 0 {
+		memoryLimit = debug.SetMemoryLimit(-1) // reads without changing it
+	}
+	return WorkersFor(runtime.NumCPU(), memoryLimit)
+}
+
+// WorkersFor sizes parse concurrency for cpus CPUs under a soft memory limit
+// of memoryLimit bytes:
+//
+//	by CPU:    half the CPUs, at least WorkersFloor (or cpus, when fewer) and
+//	           at most WorkersCeiling
+//	by memory: (memoryLimit - WorkerMemoryBase) / WorkerMemoryBudget, at
+//	           least 1
+//
+// and takes the smaller. A limit of zero or less, or math.MaxInt64 (the
+// runtime's "no limit"), leaves only the CPU bound. At the default 768 MiB
+// limit the memory bound is 8, so the CPU bound decides up to 16 CPUs.
+func WorkersFor(cpus int, memoryLimit int64) int {
+	if cpus < 1 {
+		cpus = 1
+	}
+	n := cpus / 2
+	if n < WorkersFloor {
+		n = min(WorkersFloor, cpus)
+	}
+	n = min(n, WorkersCeiling)
+
+	if memoryLimit > 0 && memoryLimit < math.MaxInt64 {
+		byMemory := int((memoryLimit - WorkerMemoryBase) / WorkerMemoryBudget)
+		n = min(n, max(byMemory, 1))
+	}
+	return n
+}
+
+// DefaultDrainThreshold is the heap size above which the pipeline starts
+// returning pooled parser memory.
+//
+// This is the knob that actually bounds indexing's peak memory. It was 1 GiB,
+// on the reasoning that a gigabyte is "comfortably above what an ordinary
+// repository ever reaches" — and real repositories disproved that. Indexing
+// three of them, best of three runs each:
+//
+//	repository            files    1 GiB      256 MiB
+//	prometheus (Go)       1,262    837 MB     632 MB   -24%, +3.7% time
+//	nest (TypeScript)     2,297    839 MB     502 MB   -40%, +11% time
+//	spring-boot (Java)   11,851  1,279 MB     744 MB   -42%, +5.4% time
+//
+// A 1,262-file Go repository reaching 837 MB is not an extreme case, it is a
+// small one. At 1 GiB the pool effectively never drained on any of the three,
+// so the threshold was not a safety valve, it was the peak.
+//
+// 256 MiB buys a quarter to nearly half the memory back for single-digit to
+// low-double-digit percent of the time. Peak memory is what decides whether
+// indexing survives a 2 GB CI container or a laptop already running an IDE;
+// a few percent of wall clock on a command that runs in seconds is not.
+const DefaultDrainThreshold int64 = 256 << 20
+
+// LargeFileDrainThreshold is the file size (256 KiB) above which a worker checks
+// for pool draining immediately after parsing, so that large generated files do not
+// pin hundreds of megabytes in parser arena pools until the next DrainInterval.
+const LargeFileDrainThreshold int64 = 256 * 1024
+
+// Options configures a run.
+type Options struct {
+	// Workers bounds parse concurrency. Zero means DefaultWorkers(MemoryLimit).
+	Workers int
+
+	// MemoryLimit is the soft memory limit the run is sized for, in bytes,
+	// when Workers is zero. Zero reads the runtime's current limit.
+	MemoryLimit int64
+
+	// MaxInFlightBytes bounds the source bytes parsed simultaneously.
+	// Defaults to DefaultInFlightBytes.
+	//
+	// It bounds admission, NOT peak memory.
+	// Measured on spring-boot, best of two runs at each setting:
+	// 4 MiB -> 1,347 MB, 8 MiB -> 1,305 MB, 16 MiB -> 1,377 MB,
+	// 32 MiB -> 1,350 MB. An eightfold change in the budget moved peak RSS by
+	// less than its own run-to-run noise, because what dominates is pooled
+	// parser arenas that outlive any single file. DrainThresholdBytes is the
+	// control that moves peak memory; this one keeps a single enormous file
+	// from being admitted alongside everything else.
+	MaxInFlightBytes int64
+
+	// DrainThresholdBytes is the heap size above which pooled parser memory is
+	// released mid-run. Defaults to DefaultDrainThreshold.
+	DrainThresholdBytes int64
+
+	// Parsers resolves a file to its parser. Defaults to parse.NewRegistry().
+	Parsers parse.Registry
+
+	// OnProgress, when set, is called as files complete. It must be cheap and
+	// safe for concurrent use.
+	OnProgress func(done, total int64)
+
+	// OnDiscovered, when set, is called once discovery has finished and
+	// before any file is parsed, with the number of files found and their
+	// total size in bytes. The caller may use it to tune the process for the
+	// size of the run (the soft memory limit does).
+	OnDiscovered func(files int, sourceBytes int64)
+
+	// Streaming dispatches files to the workers as discovery finds them
+	// instead of collecting the whole tree first. The collected list costs
+	// about 237 bytes a file (measured at 100,000 files by
+	// TestWalkStreamHoldsLessThanWalk: 23.7 MB held, against a 0.2 MB peak
+	// streaming), so a million-file monorepo holds about 240 MB before the
+	// first parse; streaming holds only what is in flight. The trade: the total is unknown until the walk ends, so
+	// OnProgress receives total 0 and OnDiscovered is not called, and files
+	// are dispatched in discovery order rather than path order. The index is
+	// the same either way: the registry digest is computed over content in an
+	// explicit order and excludes row ids (TestIndexIsDeterministic).
+	Streaming bool
+}
+
+// StreamingThreshold is the previous run's file count above which
+// `graphlume index` streams discovery (see Options.Streaming).
+const StreamingThreshold = 200_000
+
+// Runner executes indexing runs.
+type Runner struct {
+	walker  *fs.Walker
+	parsers parse.Registry
+	workers int
+	budget  *memBudget
+	// drainThreshold is the heap size above which pooled parser memory is
+	// released. See maybeDrain.
+	drainThreshold int64
+	lastDrainCheck atomic.Int64
+	onProg         func(done, total int64)
+	onDiscovered   func(files int, sourceBytes int64)
+	streaming      bool
+}
+
+// NewRunner builds a Runner over an existing walker.
+func NewRunner(walker *fs.Walker, opts Options) *Runner {
+	r := &Runner{
+		walker:       walker,
+		parsers:      opts.Parsers,
+		workers:      opts.Workers,
+		onProg:       opts.OnProgress,
+		onDiscovered: opts.OnDiscovered,
+		streaming:    opts.Streaming,
+	}
+	if r.parsers == nil {
+		// The walker's limit, so discovery and parsing agree on what "too
+		// large" means.
+		r.parsers = parse.NewRegistry(parse.WithMaxSourceBytes(int(walker.MaxFileSize())))
+	}
+	if r.workers <= 0 {
+		r.workers = DefaultWorkers(opts.MemoryLimit)
+	}
+	r.budget = newMemBudget(opts.MaxInFlightBytes)
+	r.drainThreshold = opts.DrainThresholdBytes
+	if r.drainThreshold <= 0 {
+		r.drainThreshold = DefaultDrainThreshold
+	}
+	return r
+}
+
+// Workers is the parse concurrency this runner uses.
+func (r *Runner) Workers() int { return r.workers }
+
+// Run discovers, parses and emits facts for every eligible file.
+//
+// Failure policy: a file that cannot be read or parsed is recorded with a
+// non-ok parse status and the run continues. Only context cancellation or a
+// Sink error aborts. A single unparseable file in a large repository must not
+// cost the entire index — spec §13.
+func (r *Runner) Run(ctx context.Context, sink Sink) (Stats, error) {
+	var stats Stats
+
+	var discovered []fs.Discovered
+	if !r.streaming {
+		var err error
+		discovered, err = r.walker.Walk(ctx)
+		if err != nil {
+			return stats, fmt.Errorf("discovery: %w", err)
+		}
+	}
+	stats.FilesDiscovered = int64(len(discovered))
+	if r.onDiscovered != nil && !r.streaming {
+		var total int64
+		for _, d := range discovered {
+			if !d.Skipped {
+				total += d.SizeBytes
+			}
+		}
+		r.onDiscovered(len(discovered), total)
+	}
+
+	// Deterministic ordering. The registry digest that backs the determinism
+	// gate must not depend on scheduling, so work is dispatched in a stable
+	// order even though completion order varies.
+	sort.Slice(discovered, func(i, j int) bool { return discovered[i].Path < discovered[j].Path })
+
+	var (
+		symbols, refs, imports   atomic.Int64
+		indexed, skipped, failed atomic.Int64
+		done                     atomic.Int64
+		total                    = int64(len(discovered))
+	)
+
+	work := make(chan fs.Discovered)
+	var wg sync.WaitGroup
+
+	// One error aborts the run. errOnce keeps the first, which is the
+	// informative one; later failures are usually cascade noise.
+	var (
+		errMu  sync.Mutex
+		runErr error
+	)
+	failRun := func(e error) {
+		errMu.Lock()
+		if runErr == nil {
+			runErr = e
+		}
+		errMu.Unlock()
+	}
+
+	// Two contexts with deliberately different lifetimes.
+	//
+	// sinkCtx is the caller's. A Sink typically holds an open database
+	// transaction that must survive past Run's return so the caller can flush
+	// and commit it.
+	//
+	// ctx below is internal: cancelling it stops workers early when a sink
+	// fails. Passing it to the Sink would be a subtle disaster — database/sql
+	// rolls back a transaction as soon as the context it was created with is
+	// cancelled, so `defer cancel()` would silently destroy the very rows we
+	// just wrote, and the caller's Flush would fail with ErrTxDone. That bug
+	// was real; this comment is what stops it coming back.
+	sinkCtx := ctx
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	for i := 0; i < r.workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for d := range work {
+				if ctx.Err() != nil {
+					return
+				}
+
+				facts, outcome := r.processFile(ctx, d)
+				switch outcome {
+				case outcomeSkipped:
+					skipped.Add(1)
+				case outcomeFailed:
+					failed.Add(1)
+				}
+
+				// sinkCtx, not ctx — see the lifetime note above.
+				if err := sink.WriteFile(sinkCtx, facts); err != nil {
+					failRun(fmt.Errorf("persist %s: %w", d.Path, err))
+					cancel()
+					return
+				}
+
+				if outcome == outcomeIndexed {
+					indexed.Add(1)
+					symbols.Add(int64(len(facts.Symbols)))
+					refs.Add(int64(len(facts.References)))
+					imports.Add(int64(len(facts.Imports)))
+				}
+
+				n := done.Add(1)
+
+				// Return pooled parser arenas periodically. gotreesitter holds
+				// them as strong references until drained, so without this the
+				// pool grows with the repository rather than with concurrency
+				// and peak memory becomes the sum of every parse. See
+				// parse.ReleasePooledMemory for the measurements.
+				//
+				// In addition, if a worker just parsed a large file (>256 KiB),
+				// pooled arenas can spike memory significantly. Check the heap
+				// immediately instead of waiting for DrainInterval so generated
+				// files do not pin hundreds of megabytes in the pool.
+				if n%parse.DrainInterval == 0 || d.SizeBytes > LargeFileDrainThreshold {
+					r.maybeDrain()
+				}
+
+				if r.onProg != nil {
+					r.onProg(n, total)
+				}
+			}
+		}()
+	}
+
+	if r.streaming {
+		// The callback runs one call at a time (see fs.WalkStream), so the
+		// count needs no lock. ctx is the internal context: a sink failure
+		// cancels it and the walk stops with the workers.
+		var found int64
+		werr := r.walker.WalkStream(ctx, func(d fs.Discovered) error {
+			found++
+			select {
+			case work <- d:
+				return nil
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		})
+		stats.FilesDiscovered = found
+		if werr != nil && ctx.Err() == nil {
+			failRun(fmt.Errorf("discovery: %w", werr))
+			cancel()
+		}
+	} else {
+		for _, d := range discovered {
+			select {
+			case work <- d:
+			case <-ctx.Done():
+			}
+			if ctx.Err() != nil {
+				break
+			}
+		}
+	}
+	close(work)
+	wg.Wait()
+
+	// Final drain: the run is over, so every arena in the pool is garbage.
+	// Leaving them reachable would keep the indexer's peak footprint resident
+	// for the lifetime of a long-running `graphlume watch`.
+	r.drainPools()
+
+	stats.FilesIndexed = indexed.Load()
+	stats.FilesSkipped = skipped.Load()
+	stats.ParseFailures = failed.Load()
+	stats.Symbols = symbols.Load()
+	stats.References = refs.Load()
+	stats.Imports = imports.Load()
+
+	// Reconcile once, after wg.Wait, so every counter is final and no worker
+	// can still be mutating one. Arithmetic over settled values: no lock, no
+	// extra atomic on the hot path, and a result that cannot vary with
+	// scheduling. A run may be atomically published and still not cover what it
+	// discovered; this is the check that tells the two apart. See reconcile.go.
+	stats.Reconciliation = reconcile(stats, ctx.Err() != nil)
+
+	// Persist the verdict through the sink, if the sink can hold one.
+	//
+	// context.WithoutCancel deliberately: the run this matters most for is the
+	// cancelled one, and recording its shortfall through the context that just
+	// cancelled it would be the one write guaranteed to fail. The work is one
+	// UPDATE of a row the sink already owns.
+	if rec, ok := sink.(CompletenessRecorder); ok {
+		if err := rec.RecordCompleteness(context.WithoutCancel(ctx), stats.Reconciliation); err != nil && runErr == nil {
+			return stats, fmt.Errorf("record index completeness: %w", err)
+		}
+	}
+
+	if runErr != nil {
+		return stats, runErr
+	}
+	// Cancellation is not a run failure: the caller asked to stop, so Run
+	// returns cleanly and lets the caller decide what to do with what was
+	// built. A deadline, which nobody asked for, is an error.
+	//
+	// This is the one path that returns nil with files left unprocessed, and it
+	// is why Stats.Reconciliation exists rather than an error being enough. The
+	// promise "a partial run is never committed as if complete" is kept by the
+	// caller reading Stats.Reconciliation.State, not by this return value.
+	if err := ctx.Err(); err != nil && !errors.Is(err, context.Canceled) {
+		return stats, err
+	}
+	return stats, nil
+}
+
+// maybeDrain releases pooled parser memory only when the heap warrants it.
+//
+// An unconditional periodic drain measured 17% lower peak memory for 80% worse
+// throughput on a 10,879-file corpus — it discards warm parser state constantly,
+// including while memory is perfectly healthy. Sampling the heap first makes the
+// cost proportional to the problem: on a repository that never grows large,
+// nothing is ever drained and there is no cost at all.
+//
+// ReadMemStats stops the world briefly, so it runs once per DrainInterval files
+// (or immediately after parsing a file exceeding LargeFileDrainThreshold) rather
+// than after every file.
+func (r *Runner) maybeDrain() {
+	now := time.Now().UnixNano()
+	last := r.lastDrainCheck.Load()
+	if now-last < int64(500*time.Millisecond) {
+		return
+	}
+	if !r.lastDrainCheck.CompareAndSwap(last, now) {
+		return
+	}
+	var ms runtime.MemStats
+	runtime.ReadMemStats(&ms)
+	// Compare in uint64 space. Converting HeapInuse to int64 would wrap on a
+	// heap above 8 EiB — unreachable today, but a silent sign flip would turn
+	// this guard permanently on, and the comparison is free either way.
+	if r.drainThreshold < 0 || ms.HeapInuse < uint64(r.drainThreshold) {
+		return
+	}
+	r.drainPools()
+}
+
+// drainPools releases pooled parser memory. Falls back to the library-only
+// drain when the registry cannot drain its own Tagger pools, which is the case
+// for a caller-supplied test registry.
+func (r *Runner) drainPools() {
+	if d, ok := r.parsers.(parse.Drainable); ok {
+		d.DrainPools()
+		return
+	}
+	parse.ReleasePooledMemory()
+}
+
+// noGrammarReason is the parse_error of a file no grammar applies to.
+//
+// When detection recognised the content as a language there is no grammar for,
+// the reason names it: "why was this .v file skipped" has the answer "it is
+// Coq", which is a different answer from "nobody knows what it is".
+func noGrammarReason(recognised string) string {
+	if recognised == "" {
+		return "no grammar for this file type"
+	}
+	return "no grammar for " + recognised
+}
+
+type outcome int
+
+const (
+	outcomeIndexed outcome = iota
+	outcomeSkipped
+	outcomeFailed
+)
+
+func (r *Runner) processFile(ctx context.Context, d fs.Discovered) (FileFacts, outcome) {
+	facts := FileFacts{
+		File: model.File{
+			Path:        d.Path,
+			Language:    d.Language,
+			ContentHash: d.ContentHash,
+			SizeBytes:   d.SizeBytes,
+			ModTimeUnix: d.ModTimeUnix,
+			ParseStatus: string(parse.StatusOK),
+			DetectedBy:  d.DetectedBy,
+		},
+	}
+
+	// Discovery already decided to skip (binary, oversized, symlink). The file
+	// is still recorded so the gap is visible in the index rather than looking
+	// like it never existed.
+	if d.Skipped {
+		facts.File.ParseStatus = string(parse.StatusSkipped)
+		facts.File.ParseError = d.SkipReason
+		if d.SkipReason == fs.SkipTooLarge {
+			// Named with its size and the limit, in the words the parser uses
+			// for the same refusal, so a reader of the index can tell how far
+			// over the file is and which setting would admit it.
+			facts.File.ParseError = parse.TooLargeError(d.SizeBytes, r.walker.MaxFileSize())
+		}
+		// A manifest the walk refused is the case the infra report must not
+		// swallow: it reads as "no manifests here" and it is not. Recorded as
+		// a problem so the index can say a deployment file exists and was not
+		// understood, which is a different claim from its absence.
+		if infra.Candidate(d.Path) {
+			facts.Infra = infra.File{
+				Path:     d.Path,
+				Problems: []infra.Problem{{Reason: d.SkipReason}},
+			}
+			facts.HasInfra = true
+		}
+		return facts, outcomeSkipped
+	}
+
+	// The walker has already decided the language, from the file's content
+	// where the extension alone could not say. Asking the registry by path
+	// here would throw that away and read every `.m` as MATLAB again.
+	p := r.parsers.ForLanguage(d.Language)
+	if p == nil {
+		facts.File.ParseStatus = string(parse.StatusSkipped)
+		facts.File.ParseError = noGrammarReason(d.Recognised)
+		// No grammar does not mean nothing to learn. Configuration files and
+		// dependency manifests carry declarations that need text rather than a
+		// syntax tree, and they are precisely the files no grammar claims —
+		// returning here left `graphlume config` reporting zero declared keys on
+		// a repository with a .env in its root.
+		//
+		// Deployment manifests are the same case and then some: a Dockerfile
+		// has no grammar by definition, and a compose file is YAML that no
+		// parser here claims. Skipping them left every service, port and
+		// configuration key out of the index, which is what `graphlume infra`
+		// meant when it printed NOT INDEXED on every run.
+		if analyze.Wants(d.Path) || infra.Candidate(d.Path) {
+			if src, err := os.ReadFile(filepath.Join(r.walker.Root(), filepath.FromSlash(d.Path))); err == nil {
+				facts.Content = src
+				if analyze.Wants(d.Path) {
+					facts.Analysis = analyze.File(d.Path, src, nil)
+				}
+				facts.Infra, facts.HasInfra = infra.Parse(d.Path, src)
+			}
+		}
+		return facts, outcomeSkipped
+	}
+
+	// Reserve memory before reading. Acquiring after the read would let every
+	// worker buffer a large file simultaneously, which is the spike the budget
+	// exists to prevent.
+	weight, err := r.budget.acquire(ctx, admissionWeight(d.SizeBytes))
+	if err != nil {
+		facts.File.ParseStatus = string(parse.StatusFailed)
+		facts.File.ParseError = err.Error()
+		return facts, outcomeFailed
+	}
+	defer r.budget.release(weight)
+
+	src, err := os.ReadFile(filepath.Join(r.walker.Root(), filepath.FromSlash(d.Path)))
+	if err != nil {
+		facts.File.ParseStatus = string(parse.StatusFailed)
+		facts.File.ParseError = "read: " + err.Error()
+		return facts, outcomeFailed
+	}
+	facts.Content = src
+
+	res, err := p.Parse(ctx, d.Path, src)
+	if err != nil {
+		// Only cancellation reaches here; parse problems come back in res.
+		facts.File.ParseStatus = string(parse.StatusFailed)
+		facts.File.ParseError = err.Error()
+		return facts, outcomeFailed
+	}
+
+	facts.File.ParseStatus = string(res.Status)
+	if res.Err != nil {
+		facts.File.ParseError = res.Err.Error()
+	}
+	facts.Symbols = res.Symbols
+	facts.References = res.References
+	facts.Imports = res.Imports
+
+	// API and database analysis runs on the SAME source the parser just read,
+	// while it is still in hand. Doing it later would mean either re-reading
+	// every file or persisting content, and the registry deliberately stores
+	// neither. It is given the file's symbols so a statement can be attributed
+	// to the definition that runs it.
+	facts.Analysis = analyze.File(d.Path, src, res.Symbols)
+	facts.Calls = api.ExtractCalls(d.Path, src)
+	// A manifest that a grammar DOES claim — a .yaml when a YAML parser is
+	// registered — must be read as a manifest too. Gating this on the absence
+	// of a grammar would make deployment indexing depend on which parsers
+	// happen to be compiled in, which is not a property of the repository.
+	if infra.Candidate(d.Path) {
+		facts.Infra, facts.HasInfra = infra.Parse(d.Path, src)
+	}
+
+	if res.Status == parse.StatusFailed {
+		return facts, outcomeFailed
+	}
+	if res.Status == parse.StatusSkipped {
+		// Includes the text-only case: the file's text is kept on facts and
+		// the sink indexes it for search (see model.TextIndexed), but no tree
+		// was built, so it is not counted as parsed.
+		return facts, outcomeSkipped
+	}
+	return facts, outcomeIndexed
+}
+
+// largeFileBytes is the size above which a file is admitted as if it were
+// several, so that large files are parsed a few at a time.
+const largeFileBytes = 512 << 10
+
+// largeFileWeight is how many times its own size a large file reserves.
+const largeFileWeight = 8
+
+// admissionWeight is what a file of size bytes reserves from the in-flight
+// budget while it is read and parsed.
+//
+// A parse costs memory in proportion to its source: about 150 bytes of process
+// memory per source byte with gotreesitter v0.57.0, so 300 MB for a file at the
+// 2 MiB default limit (the measurements are beside parse.DefaultMaxSourceBytes).
+// Weighing a file by its plain size would let every worker hold one of those at
+// once. Above largeFileBytes a file therefore reserves eight times its size:
+// against the default 32 MiB budget that admits two 2 MiB files together and
+// one 4 MiB file alone, while any number of ordinary files still run side by
+// side. The cost is that a repository made of very large files parses them
+// nearly one at a time, which is the intent.
+func admissionWeight(size int64) int64 {
+	if size > largeFileBytes {
+		return size * largeFileWeight
+	}
+	return size
+}

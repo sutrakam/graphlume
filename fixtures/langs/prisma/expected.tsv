@@ -1,0 +1,20 @@
+# Prisma. Rule: every named block is a definition. model, view, enum and
+# composite type are class; datasource and generator are variable (a named
+# configuration). Fields (column_declaration) are NOT extracted: a field is not
+# addressable outside its model and indexing every field drowns the models.
+# Attributes (@id, @@map, @relation), enum values, configuration keys inside
+# datasource/generator and calls such as env() and autoincrement() are not
+# definitions.
+schema.prisma	3	variable	db
+schema.prisma	8	variable	client
+schema.prisma	13	variable	docs
+schema.prisma	18	class	Role
+schema.prisma	26	class	Status
+schema.prisma	31	class	Address
+schema.prisma	37	class	GeoPoint
+schema.prisma	42	class	User
+schema.prisma	56	class	Profile
+schema.prisma	63	class	Post
+schema.prisma	76	class	Category
+schema.prisma	82	class	PublishedPost
+schema.prisma	88	class	UserSummary
